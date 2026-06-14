@@ -3,8 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from livekit import api
 import os
 from dotenv import load_dotenv
+from database import engine
+import models
 
 load_dotenv()
+
+# Initialize DB tables
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
