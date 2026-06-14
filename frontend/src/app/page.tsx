@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { Mic, MicOff, BrainCircuit, Loader2 } from 'lucide-react';
 import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from '@livekit/components-react';
 import '@livekit/components-styles';
+import * as rrweb from 'rrweb';
 
 // Inner component that handles canvas state extraction when connected to the room
-function CanvasSync({ editor, isSessionActive }: { editor: Editor | null, isSessionActive: boolean }) {
+function CanvasSync({ editor, isSessionActive, rrwebEvents }: { editor: Editor | null, isSessionActive: boolean, rrwebEvents: any[] }) {
   const room = useRoomContext();
 
   useEffect(() => {
@@ -21,13 +22,9 @@ function CanvasSync({ editor, isSessionActive }: { editor: Editor | null, isSess
         const shapes = editor.getCurrentPageShapes();
         const payload = JSON.stringify({ type: "canvas_sync", shapes });
         
-        // Send canvas state via LiveKit Data Channels
         try {
           await room.localParticipant.publishData(new TextEncoder().encode(payload), 0);
-          console.log(`[AI Vision Sync] Sent ${shapes.length} shapes to backend.`);
-        } catch (err) {
-          console.error("Failed to sync canvas to backend:", err);
-        }
+        } catch (err) {}
       }, 2000);
     } else if (!isSessionActive) {
       console.log("🔴 AI Session Paused.");
@@ -38,6 +35,27 @@ function CanvasSync({ editor, isSessionActive }: { editor: Editor | null, isSess
     };
   }, [isSessionActive, editor, room]);
 
+  useEffect(() => {
+    if (!room) return;
+    const handleData = (payload: Uint8Array) => {
+      try {
+        const dataStr = new TextDecoder().decode(payload);
+        const data = JSON.parse(dataStr);
+        if (data.type === "breakthrough") {
+          console.log("🎉 Breakthrough detected! Downloading replay...");
+          const blob = new Blob([JSON.stringify(rrwebEvents)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `aha-moment-${new Date().getTime()}.json`;
+          a.click();
+        }
+      } catch (e) {}
+    };
+    room.on("dataReceived", handleData);
+    return () => { room.off("dataReceived", handleData); }
+  }, [room, rrwebEvents]);
+
   return null;
 }
 
@@ -46,6 +64,21 @@ export default function CanvasPage() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
+  
+  // Keep track of rrweb events for the replay
+  const rrwebEventsRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    // Start recording DOM events silently
+    const stopRecording = rrweb.record({
+      emit(event) {
+        rrwebEventsRef.current.push(event);
+      },
+    });
+    return () => {
+      if (stopRecording) stopRecording();
+    };
+  }, []);
 
   const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "ws://localhost:7880";
 
@@ -107,7 +140,7 @@ export default function CanvasPage() {
           style={{ display: 'none' }}
         >
           <RoomAudioRenderer />
-          <CanvasSync editor={editor} isSessionActive={isSessionActive} />
+          <CanvasSync editor={editor} isSessionActive={isSessionActive} rrwebEvents={rrwebEventsRef.current} />
         </LiveKitRoom>
       )}
     </div>

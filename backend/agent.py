@@ -68,6 +68,13 @@ async def entrypoint(ctx: JobContext):
                     role="system",
                     text=f"CRITICAL REASONING UPDATE from internal engine: An error was just detected on the board. Use this hint to guide the student: {hint}"
                 )
+            else:
+                logger.info("Groq detected a CORRECT solution! Sending breakthrough signal to frontend.")
+                try:
+                    payload = json.dumps({"type": "breakthrough"}).encode("utf-8")
+                    await ctx.room.local_participant.publish_data(payload)
+                except Exception as e:
+                    logger.error(f"Failed to send breakthrough signal: {e}")
         except Exception as e:
             logger.error(f"Groq reasoning error: {e}")
     
