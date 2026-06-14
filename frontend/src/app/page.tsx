@@ -4,8 +4,42 @@ import { useState, useCallback, useEffect } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { Mic, MicOff, BrainCircuit, Loader2 } from 'lucide-react';
-import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
+import { LiveKitRoom, RoomAudioRenderer, useRoomContext } from '@livekit/components-react';
 import '@livekit/components-styles';
+
+// Inner component that handles canvas state extraction when connected to the room
+function CanvasSync({ editor, isSessionActive }: { editor: Editor | null, isSessionActive: boolean }) {
+  const room = useRoomContext();
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (isSessionActive && editor && room) {
+      console.log("🟢 AI Session Started. The AI is now 'watching' the canvas...");
+      
+      intervalId = setInterval(async () => {
+        const shapes = editor.getCurrentPageShapes();
+        const payload = JSON.stringify({ type: "canvas_sync", shapes });
+        
+        // Send canvas state via LiveKit Data Channels
+        try {
+          await room.localParticipant.publishData(new TextEncoder().encode(payload), 0);
+          console.log(`[AI Vision Sync] Sent ${shapes.length} shapes to backend.`);
+        } catch (err) {
+          console.error("Failed to sync canvas to backend:", err);
+        }
+      }, 2000);
+    } else if (!isSessionActive) {
+      console.log("🔴 AI Session Paused.");
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isSessionActive, editor, room]);
+
+  return null;
+}
 
 export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -13,30 +47,11 @@ export default function CanvasPage() {
   const [token, setToken] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // We fall back to localhost if no cloud URL is provided
   const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || "ws://localhost:7880";
 
   const handleMount = useCallback((editor: Editor) => {
     setEditor(editor);
   }, []);
-
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-
-    if (isSessionActive && editor) {
-      console.log("🟢 AI Session Started. The AI is now 'watching' the canvas...");
-      intervalId = setInterval(() => {
-        const shapes = editor.getCurrentPageShapes();
-        console.log(`[AI Vision Sync] Captured ${shapes.length} shapes on canvas:`, shapes);
-      }, 2000);
-    } else if (!isSessionActive && editor) {
-      console.log("🔴 AI Session Paused.");
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isSessionActive, editor]);
 
   const toggleSession = async () => {
     if (isSessionActive) {
@@ -45,14 +60,13 @@ export default function CanvasPage() {
     } else {
       setIsConnecting(true);
       try {
-        // Fetch token from our Python backend
         const res = await fetch("http://localhost:8000/api/token");
         const data = await res.json();
         setToken(data.token);
         setIsSessionActive(true);
       } catch (err) {
-        console.error("Failed to fetch token. Ensure Python backend is running.", err);
-        alert("Could not connect to the backend. Please check the console.");
+        console.error("Failed to fetch token.", err);
+        alert("Could not connect to the backend.");
       } finally {
         setIsConnecting(false);
       }
@@ -61,10 +75,8 @@ export default function CanvasPage() {
 
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
-      {/* The Core Sensory Organ: tldraw canvas */}
       <Tldraw onMount={handleMount} />
 
-      {/* Action Bar UI Overlay */}
       <div className="action-bar-container">
         <div className="action-bar">
           <div className="status-indicator">
@@ -85,7 +97,6 @@ export default function CanvasPage() {
         </div>
       </div>
 
-      {/* LiveKit Room Connection */}
       {isSessionActive && token && (
         <LiveKitRoom
           video={false}
@@ -96,6 +107,7 @@ export default function CanvasPage() {
           style={{ display: 'none' }}
         >
           <RoomAudioRenderer />
+          <CanvasSync editor={editor} isSessionActive={isSessionActive} />
         </LiveKitRoom>
       )}
     </div>
