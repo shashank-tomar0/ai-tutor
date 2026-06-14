@@ -1,12 +1,13 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from livekit import api
 import os
+import json
 from dotenv import load_dotenv
 from database import engine, get_db
 import models
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from groq import AsyncGroq
 
 load_dotenv()
 
@@ -23,21 +24,51 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/api/token")
-async def get_token(room: str = "tutor-room", participant: str = "student"):
-    """Generate a LiveKit token for the frontend."""
-    # Ensure keys exist, otherwise mock
-    api_key = os.getenv("LIVEKIT_API_KEY", "devkey")
-    api_secret = os.getenv("LIVEKIT_API_SECRET", "secret")
+groq_client = AsyncGroq(api_key=os.environ.get("GROQ_API_KEY"))
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    await websocket.accept()
     
-    token = api.AccessToken(api_key, api_secret) \
-        .with_identity(participant) \
-        .with_name(participant) \
-        .with_grants(api.VideoGrants(
-            room_join=True,
-            room=room,
-        ))
-    return {"token": token.to_jwt()}
+    # Keep track of conversation history
+    chat_history = [
+        {"role": "system", "content": "You are Project Newton, a Socratic math tutor. You receive the student's transcribed speech and a JSON of their digital canvas. Guide them with short, conversational responses. Do not give direct answers."}
+    ]
+    
+    try:
+        while True:
+            data = await websocket.receive_text()
+            payload = json.loads(data)
+            
+            transcript = payload.get("transcript", "")
+            shapes = payload.get("shapes", [])
+            
+            # Combine canvas state and spoken text
+            user_message = f"Canvas state: {json.dumps(shapes)}\n\nStudent says: {transcript}"
+            chat_history.append({"role": "user", "content": user_message})
+            
+            print(f"Received from student: {transcript}")
+            
+            # Query Groq
+            response = await groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=chat_history,
+                temperature=0.7,
+                max_tokens=150
+            )
+            
+            ai_text = response.choices[0].message.content
+            chat_history.append({"role": "assistant", "content": ai_text})
+            
+            print(f"AI response: {ai_text}")
+            
+            # Send response back to frontend for TTS
+            await websocket.send_json({"type": "ai_response", "text": ai_text})
+            
+    except WebSocketDisconnect:
+        print("Client disconnected")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
 
 @app.get("/api/dashboard/heatmap")
 def get_heatmap(db: Session = Depends(get_db)):
@@ -65,4 +96,4 @@ def get_struggling_students(db: Session = Depends(get_db)):
 
 @app.get("/")
 def read_root():
-    return {"status": "Project Newton Backend is running."}
+    return {"status": "Project Newton Backend is running (Free Web Speech Version)."}

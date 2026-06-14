@@ -1,9 +1,6 @@
 fastapi
 uvicorn
-livekit-api
-livekit-agents
-livekit-plugins-openai
-livekit-plugins-silero
 python-dotenv
 sqlalchemy
 groq
+websockets
