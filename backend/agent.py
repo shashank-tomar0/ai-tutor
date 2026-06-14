@@ -1,11 +1,13 @@
 import os
 import json
 import logging
+import asyncio
 from dotenv import load_dotenv
 
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.voice_assistant import VoiceAssistant
 from livekit.plugins import openai, silero
+from groq import AsyncGroq
 
 load_dotenv()
 logger = logging.getLogger("ai-tutor-agent")
@@ -37,6 +39,37 @@ async def entrypoint(ctx: JobContext):
 
     # Start the assistant in the room
     assistant.start(ctx.room)
+
+    # Initialize the Groq reasoning client
+    groq_client = AsyncGroq(api_key=os.environ.get("GROQ_API_KEY"))
+
+    async def analyze_canvas_with_groq(shapes):
+        try:
+            logger.info("Sending canvas to Groq (DeepSeek-R1) for reasoning...")
+            response = await groq_client.chat.completions.create(
+                model="deepseek-r1-distill-llama-70b",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a math tutor's internal logic verification engine. You will be given a JSON representation of a student's whiteboard canvas. Look for any mathematical errors in the text or equations. If there is an error, respond ONLY with a concise hint for the tutor to use. If it is correct, respond ONLY with 'CORRECT'."
+                    },
+                    {
+                        "role": "user", 
+                        "content": json.dumps(shapes)
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=150
+            )
+            hint = response.choices[0].message.content
+            if "CORRECT" not in hint:
+                logger.info(f"Groq detected an error: {hint}")
+                assistant.chat_ctx.append(
+                    role="system",
+                    text=f"CRITICAL REASONING UPDATE from internal engine: An error was just detected on the board. Use this hint to guide the student: {hint}"
+                )
+        except Exception as e:
+            logger.error(f"Groq reasoning error: {e}")
     
     # Listen for Data Channel messages from the frontend (the canvas state)
     @ctx.room.on("data_received")
@@ -46,12 +79,17 @@ async def entrypoint(ctx: JobContext):
             if payload.get("type") == "canvas_sync":
                 shapes = payload.get("shapes", [])
                 logger.info(f"Received canvas sync with {len(shapes)} shapes.")
-                # We append this context invisibly to the LLM's thought process
-                # so it "knows" what is on the board without reading it aloud.
+                
+                # Standard context append for general awareness
                 assistant.chat_ctx.append(
                     role="system",
                     text=f"The student's canvas currently contains the following items: {json.dumps(shapes)}"
                 )
+
+                # Fire off the heavy reasoning engine asynchronously
+                if len(shapes) > 0:
+                    asyncio.create_task(analyze_canvas_with_groq(shapes))
+
         except Exception as e:
             logger.error(f"Error parsing data channel message: {e}")
 
