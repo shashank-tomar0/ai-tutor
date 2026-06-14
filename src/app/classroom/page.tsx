@@ -43,17 +43,40 @@ export default function CanvasPage() {
         recognitionRef.current.continuous = true;
         recognitionRef.current.interimResults = false;
 
-        recognitionRef.current.onresult = (event: any) => {
+        recognitionRef.current.onresult = async (event: any) => {
           const transcript = event.results[event.results.length - 1][0].transcript;
           console.log("🎤 Heard:", transcript);
           
-          // Send transcript and canvas shapes to backend
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          if (!isSessionActive) return;
+
+          try {
+            // Pause recognition while thinking/speaking
+            try { recognitionRef.current?.stop(); } catch(e) {}
+
             const shapes = editor ? editor.getCurrentPageShapes() : [];
-            wsRef.current.send(JSON.stringify({
-              transcript: transcript,
-              shapes: shapes
-            }));
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ transcript, shapes })
+            });
+            const data = await res.json();
+
+            if (data.type === "ai_response") {
+              console.log("🤖 AI says:", data.text);
+              const utterance = new SpeechSynthesisUtterance(data.text);
+              utterance.onend = () => {
+                // Resume listening
+                if (isSessionActive) {
+                  try { recognitionRef.current?.start(); } catch(e) {}
+                }
+              };
+              if (synthesisRef.current) synthesisRef.current.speak(utterance);
+            }
+          } catch (e) {
+             console.error("Failed to fetch AI response", e);
+             if (isSessionActive) {
+                try { recognitionRef.current?.start(); } catch(err) {}
+             }
           }
         };
 
@@ -64,61 +87,25 @@ export default function CanvasPage() {
          console.warn("Web Speech API not supported in this browser.");
       }
     }
-  }, [editor]);
+  }, [editor, isSessionActive]);
 
   const toggleSession = () => {
     if (isSessionActive) {
       // Disconnect
       setIsSessionActive(false);
-      wsRef.current?.close();
       recognitionRef.current?.stop();
       if (synthesisRef.current) synthesisRef.current.cancel();
     } else {
-      setIsConnecting(true);
-      // Connect WebSocket
-      const ws = new WebSocket("ws://localhost:8000/ws/chat");
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setIsSessionActive(true);
-        setIsConnecting(false);
-        try {
-            recognitionRef.current?.start();
-        } catch(e) {}
-        
-        // Initial greeting
-        const msg = "Hello! I'm Newton. I can see your canvas. What are we working on today?";
-        const utterance = new SpeechSynthesisUtterance(msg);
-        if (synthesisRef.current) synthesisRef.current.speak(utterance);
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "ai_response") {
-          console.log("🤖 AI says:", data.text);
-          // Pause recognition while AI speaks so it doesn't hear itself
-          try { recognitionRef.current?.stop(); } catch(e) {}
-          
-          const utterance = new SpeechSynthesisUtterance(data.text);
-          utterance.onend = () => {
-             // Resume listening
-             if (isSessionActive) {
-                 try { recognitionRef.current?.start(); } catch(e) {}
-             }
-          };
-          if (synthesisRef.current) synthesisRef.current.speak(utterance);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error("WebSocket error", error);
-        setIsConnecting(false);
-      };
+      // Connect
+      setIsSessionActive(true);
+      try {
+          recognitionRef.current?.start();
+      } catch(e) {}
       
-      ws.onclose = () => {
-        setIsSessionActive(false);
-        try { recognitionRef.current?.stop(); } catch(e) {}
-      };
+      // Initial greeting
+      const msg = "Hello! I'm Newton. I can see your canvas. What are we working on today?";
+      const utterance = new SpeechSynthesisUtterance(msg);
+      if (synthesisRef.current) synthesisRef.current.speak(utterance);
     }
   };
 

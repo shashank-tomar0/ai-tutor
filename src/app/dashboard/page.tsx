@@ -12,8 +12,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://localhost:8000/api/dashboard/heatmap").then(res => res.json()),
-      fetch("http://localhost:8000/api/dashboard/struggling").then(res => res.json())
+      fetch("/api/dashboard/heatmap").then(res => res.json()),
+      fetch("/api/dashboard/struggling").then(res => res.json())
     ]).then(([heatData, struggleData]) => {
       setHeatmap(heatData);
       setStruggling(struggleData);
