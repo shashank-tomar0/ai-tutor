@@ -1,10 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from livekit import api
 import os
 from dotenv import load_dotenv
-from database import engine
+from database import engine, get_db
 import models
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 load_dotenv()
 
@@ -36,6 +38,30 @@ async def get_token(room: str = "tutor-room", participant: str = "student"):
             room=room,
         ))
     return {"token": token.to_jwt()}
+
+@app.get("/api/dashboard/heatmap")
+def get_heatmap(db: Session = Depends(get_db)):
+    # Group by concept and average the score
+    results = db.query(
+        models.ConceptMastery.concept_id,
+        func.avg(models.ConceptMastery.score).label('average_score')
+    ).group_by(models.ConceptMastery.concept_id).all()
+    
+    return [{"concept": r.concept_id, "score": round(r.average_score, 2)} for r in results]
+
+@app.get("/api/dashboard/struggling")
+def get_struggling_students(db: Session = Depends(get_db)):
+    traces = db.query(models.SessionTrace).order_by(models.SessionTrace.timestamp.desc()).limit(10).all()
+    response = []
+    for t in traces:
+        response.append({
+            "student_name": t.student.name,
+            "concept": t.concept,
+            "struggle": t.struggle_description,
+            "breakthrough": t.breakthrough_description,
+            "timestamp": t.timestamp
+        })
+    return response
 
 @app.get("/")
 def read_root():
