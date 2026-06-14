@@ -1,14 +1,14 @@
 import random
-from database import SessionLocal, engine
-import models
+from app.core.database import engine, SessionLocal
+from app.models.domain import Base, Student, SessionTrace, ConceptMastery
 
 # Ensure tables exist
-models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
 
 def seed_data():
-    if db.query(models.Student).count() > 0:
+    if db.query(Student).count() > 0:
         print("Database already seeded.")
         return
 

@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import json
 from dotenv import load_dotenv
-from database import engine, get_db
-import models
+from app.core.database import engine, get_db
+from app.models import domain as models
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from groq import AsyncGroq
