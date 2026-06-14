@@ -1,151 +1,137 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Tldraw, Editor } from 'tldraw';
-import 'tldraw/tldraw.css';
-import { Mic, MicOff, BrainCircuit, Loader2 } from 'lucide-react';
-import * as rrweb from 'rrweb';
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars, OrbitControls } from '@react-three/drei';
+import { motion } from 'framer-motion';
+import { ArrowRight, Brain, Sparkles, BookOpen } from 'lucide-react';
+import Link from 'next/link';
+import './globals.css';
 
-export default function CanvasPage() {
-  const [editor, setEditor] = useState<Editor | null>(null);
-  const [isSessionActive, setIsSessionActive] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  
-  const rrwebEventsRef = useRef<any[]>([]);
-  const wsRef = useRef<WebSocket | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const synthesisRef = useRef<SpeechSynthesis | null>(null);
-
-  useEffect(() => {
-    synthesisRef.current = window.speechSynthesis;
-    
-    // Start recording DOM events silently
-    const stopRecording = rrweb.record({
-      emit(event) {
-        rrwebEventsRef.current.push(event);
-      },
-    });
-    return () => {
-      if (stopRecording) stopRecording();
-    };
-  }, []);
-
-  const handleMount = useCallback((editor: Editor) => {
-    setEditor(editor);
-  }, []);
-
-  // Web Speech API Setup
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = false;
-
-        recognitionRef.current.onresult = (event: any) => {
-          const transcript = event.results[event.results.length - 1][0].transcript;
-          console.log("🎤 Heard:", transcript);
-          
-          // Send transcript and canvas shapes to backend
-          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            const shapes = editor ? editor.getCurrentPageShapes() : [];
-            wsRef.current.send(JSON.stringify({
-              transcript: transcript,
-              shapes: shapes
-            }));
-          }
-        };
-
-        recognitionRef.current.onerror = (event: any) => {
-          console.error("Speech recognition error", event.error);
-        };
-      } else {
-         console.warn("Web Speech API not supported in this browser.");
-      }
+function FloatingMathSymbols() {
+  const meshRef = useRef<any>();
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.1;
+      meshRef.current.rotation.x = state.clock.elapsedTime * 0.05;
     }
-  }, [editor]);
-
-  const toggleSession = () => {
-    if (isSessionActive) {
-      // Disconnect
-      setIsSessionActive(false);
-      wsRef.current?.close();
-      recognitionRef.current?.stop();
-      if (synthesisRef.current) synthesisRef.current.cancel();
-    } else {
-      setIsConnecting(true);
-      // Connect WebSocket
-      const ws = new WebSocket("ws://localhost:8000/ws/chat");
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setIsSessionActive(true);
-        setIsConnecting(false);
-        try {
-            recognitionRef.current?.start();
-        } catch(e) {}
-        
-        // Initial greeting
-        const msg = "Hello! I'm Newton. I can see your canvas. What are we working on today?";
-        const utterance = new SpeechSynthesisUtterance(msg);
-        if (synthesisRef.current) synthesisRef.current.speak(utterance);
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "ai_response") {
-          console.log("🤖 AI says:", data.text);
-          // Pause recognition while AI speaks so it doesn't hear itself
-          try { recognitionRef.current?.stop(); } catch(e) {}
-          
-          const utterance = new SpeechSynthesisUtterance(data.text);
-          utterance.onend = () => {
-             // Resume listening
-             if (isSessionActive) {
-                 try { recognitionRef.current?.start(); } catch(e) {}
-             }
-          };
-          if (synthesisRef.current) synthesisRef.current.speak(utterance);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error("WebSocket error", error);
-        setIsConnecting(false);
-      };
-      
-      ws.onclose = () => {
-        setIsSessionActive(false);
-        try { recognitionRef.current?.stop(); } catch(e) {}
-      };
-    }
-  };
+  });
 
   return (
-    <div style={{ position: 'fixed', inset: 0 }}>
-      <Tldraw onMount={handleMount} />
+    <mesh ref={meshRef}>
+      <torusKnotGeometry args={[9, 1.5, 200, 32]} />
+      <meshStandardMaterial 
+        color="#3b82f6" 
+        wireframe 
+        transparent 
+        opacity={0.15} 
+      />
+    </mesh>
+  );
+}
 
-      <div className="z-50 absolute bottom-8 left-1/2 -translate-x-1/2">
-        <div className="bg-white/90 backdrop-blur-lg p-4 rounded-full shadow-2xl border border-gray-200 flex items-center space-x-6">
+export default function LandingPage() {
+  return (
+    <div className="relative min-h-screen bg-slate-950 overflow-hidden font-sans text-slate-50">
+      
+      {/* 3D Background */}
+      <div className="absolute inset-0 z-0">
+        <Canvas camera={{ position: [0, 0, 20], fov: 60 }}>
+          <ambientLight intensity={0.5} />
+          <pointLight position={[10, 10, 10]} intensity={1} color="#60a5fa" />
+          <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+          <FloatingMathSymbols />
+          <OrbitControls enableZoom={false} autoRotate autoRotateSpeed={0.5} />
+        </Canvas>
+      </div>
+
+      {/* Overlay Gradients */}
+      <div className="absolute inset-0 z-10 bg-gradient-to-b from-transparent via-slate-950/80 to-slate-950 pointer-events-none" />
+
+      {/* Content */}
+      <div className="relative z-20 flex flex-col items-center justify-center min-h-screen px-4 py-20">
+        
+        {/* Navigation */}
+        <nav className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
           <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-full ${isSessionActive ? 'bg-blue-100 text-blue-600 animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
-                <BrainCircuit size={24} />
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <Brain className="text-white" size={28} />
             </div>
-            <span className="font-semibold text-gray-800 text-lg">
-              {isSessionActive ? "Newton is listening..." : "Ready to start?"}
-            </span>
+            <span className="font-extrabold text-2xl tracking-tight text-white">Newton</span>
+          </div>
+          <div className="flex space-x-6 items-center">
+            <Link href="/dashboard" className="text-slate-300 hover:text-white transition-colors text-sm font-semibold tracking-wide uppercase">Teacher Dashboard</Link>
+            <Link href="/replay" className="text-slate-300 hover:text-white transition-colors text-sm font-semibold tracking-wide uppercase">Replays</Link>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="text-center max-w-4xl mx-auto"
+        >
+          <div className="inline-flex items-center space-x-2 bg-blue-900/30 border border-blue-500/30 backdrop-blur-md px-4 py-2 rounded-full mb-8 text-blue-300 text-sm font-medium">
+            <Sparkles size={16} />
+            <span>The World's First Cognitive AI Tutor</span>
           </div>
           
-          <button 
-            className={`flex items-center space-x-2 px-6 py-3 rounded-full font-bold text-white transition-all shadow-md ${isSessionActive ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-            onClick={toggleSession}
-            disabled={isConnecting}
-          >
-            {isConnecting ? <Loader2 size={20} className="animate-spin" /> : (isSessionActive ? <MicOff size={20} /> : <Mic size={20} />)}
-            <span>{isConnecting ? "Connecting..." : (isSessionActive ? "End Session" : "Start Session")}</span>
-          </button>
-        </div>
+          <h1 className="text-6xl md:text-8xl font-extrabold tracking-tighter mb-8 leading-tight">
+            Learn at the speed of <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
+              Thought.
+            </span>
+          </h1>
+          
+          <p className="text-xl md:text-2xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed font-light">
+            Project Newton is an omniscient, real-time Socratic co-pilot. It sees your canvas, hears your voice, and guides you to the "Aha!" moment without ever giving you the direct answer.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+            <Link href="/classroom">
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center space-x-2 bg-white text-slate-950 px-8 py-4 rounded-full font-bold text-lg shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] transition-all hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)]"
+              >
+                <span>Start Interactive Demo</span>
+                <ArrowRight size={20} />
+              </motion.button>
+            </Link>
+            
+            <Link href="/dashboard">
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center space-x-2 bg-slate-800/50 backdrop-blur-md border border-slate-700 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-slate-800 transition-all"
+              >
+                <BookOpen size={20} />
+                <span>View Dashboard</span>
+              </motion.button>
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Feature Highlights */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-32 max-w-5xl mx-auto w-full"
+        >
+          {[
+            { title: "Sensory Canvas", desc: "Draw freely. Newton instantly parses the physics and logic of your digital whiteboard." },
+            { title: "Dual-Core Reasoning", desc: "Powered by Groq's DeepSeek-R1. Zero hallucinations. Perfect math verification in milliseconds." },
+            { title: "Aha! Replays", desc: "Every breakthrough is perfectly recorded without screen sharing. Share the magic with teachers." }
+          ].map((feature, i) => (
+            <div key={i} className="bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 p-8 rounded-3xl hover:bg-slate-800/80 transition-colors shadow-2xl">
+              <h3 className="text-xl font-bold mb-3 text-slate-100">{feature.title}</h3>
+              <p className="text-slate-400 leading-relaxed font-light">{feature.desc}</p>
+            </div>
+          ))}
+        </motion.div>
+        
       </div>
     </div>
   );
