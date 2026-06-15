@@ -6,11 +6,15 @@ import 'tldraw/tldraw.css';
 import { Mic, MicOff, Brain, Loader2, ArrowLeft } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase';
 
 export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [chatLog, setChatLog] = useState<{role: string, content: string}[]>([]);
+  const router = useRouter();
   
   const rrwebEventsRef = useRef<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
@@ -18,6 +22,13 @@ export default function CanvasPage() {
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
 
   useEffect(() => {
+    // Check Authentication
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push('/login');
+      }
+    });
+
     synthesisRef.current = window.speechSynthesis;
     
     // Start recording DOM events silently

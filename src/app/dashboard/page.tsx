@@ -3,15 +3,23 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../utils/supabase';
 
 export default function DashboardPage() {
   const [heatmap, setHeatmap] = useState([]);
   const [struggling, setStruggling] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     async function loadData() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
       // Load initial interventions
       const { data: initialInterventions } = await supabase
         .from('interventions')
