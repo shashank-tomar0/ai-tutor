@@ -62,7 +62,7 @@ export default function LoginPage() {
                 label: 'font-bold uppercase text-xs tracking-wider mb-2',
               }
             }}
-            providers={[]} // Add 'google', 'github' here if configured in Supabase
+            providers={['google']}
           />
         </div>
       </div>
