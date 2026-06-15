@@ -1,103 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background-color: #fcfcfc;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  background-color: #ffffff;
+  color: #000000;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  box-sizing: border-box;
+::selection {
+  background: #000000;
+  color: #ffffff;
 }
 
-/* UI Overlay Styles */
-.action-bar-container {
-  position: absolute;
-  bottom: 30px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  pointer-events: none; /* Let clicks pass through to canvas where there is no UI */
-  z-index: 9999;
+html {
+  scroll-behavior: smooth;
 }
 
-.action-bar {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  background-color: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  padding: 12px 24px;
-  border-radius: 9999px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  pointer-events: auto; /* Re-enable clicks for the action bar itself */
-  transition: all 0.3s ease;
+::-webkit-scrollbar {
+  width: 6px;
 }
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+::-webkit-scrollbar-track {
+  background: #ffffff;
 }
-
-.status-text {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
+::-webkit-scrollbar-thumb {
+  background: #000000;
+  border-radius: 0px;
 }
-
-.icon {
-  transition: color 0.3s ease;
-}
-
-.icon-idle {
-  color: #999;
-}
-
-.icon-active {
-  color: #8b5cf6;
-  animation: pulse 2s infinite;
-}
-
-.session-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 9999px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-idle {
-  background-color: #111;
-  color: white;
-}
-
-.btn-idle:hover {
-  background-color: #333;
-  transform: translateY(-1px);
-}
-
-.btn-active {
-  background-color: #ef4444;
-  color: white;
-}
-
-.btn-active:hover {
-  background-color: #dc2626;
-  transform: translateY(-1px);
-}
-
-@keyframes pulse {
-  0% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.1); }
-  100% { opacity: 1; transform: scale(1); }
+::-webkit-scrollbar-thumb:hover {
+  background: #333333;
 }

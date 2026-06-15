@@ -3,8 +3,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { Mic, MicOff, BrainCircuit, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Brain, Loader2, ArrowLeft } from 'lucide-react';
 import * as rrweb from 'rrweb';
+import Link from 'next/link';
 
 export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -81,7 +82,20 @@ export default function CanvasPage() {
         };
 
         recognitionRef.current.onerror = (event: any) => {
-          console.error("Speech recognition error", event.error);
+          console.error("Speech recognition error:", event.error);
+          
+          if (event.error === 'network') {
+            setIsSessionActive(false);
+            alert("Speech recognition network error. This may happen if your browser cannot connect to its speech servers or if you are using an ad-blocker. Please check your connection and try again.");
+          } else if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+            setIsSessionActive(false);
+            alert("Microphone access is required. Please allow microphone permissions and try again.");
+          } else {
+            // For other errors, we might want to just restart if session is active
+            if (isSessionActive) {
+               try { recognitionRef.current?.start(); } catch(e) {}
+            }
+          }
         };
       } else {
          console.warn("Web Speech API not supported in this browser.");
@@ -110,27 +124,36 @@ export default function CanvasPage() {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0 }}>
+    <div style={{ position: 'fixed', inset: 0 }} className="bg-white font-sans text-black">
       <Tldraw onMount={handleMount} />
 
+      {/* Back to home */}
+      <div className="absolute top-4 left-4 z-50">
+        <Link href="/" className="flex items-center space-x-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <ArrowLeft size={14} />
+          <span>INDEX</span>
+        </Link>
+      </div>
+
+      {/* Bottom Toolbar */}
       <div className="z-50 absolute bottom-8 left-1/2 -translate-x-1/2">
-        <div className="bg-white/90 backdrop-blur-lg p-4 rounded-full shadow-2xl border border-gray-200 flex items-center space-x-6">
-          <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-full ${isSessionActive ? 'bg-blue-100 text-blue-600 animate-pulse' : 'bg-gray-100 text-gray-400'}`}>
-                <BrainCircuit size={24} />
+        <div className="bg-white border-2 border-black p-2 px-4 rounded-full shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center space-x-4">
+          <div className="flex items-center space-x-3 pl-2">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 border-black ${isSessionActive ? 'bg-black text-white' : 'bg-white text-black'}`}>
+              <Brain size={16} />
             </div>
-            <span className="font-semibold text-gray-800 text-lg">
-              {isSessionActive ? "Newton is listening..." : "Ready to start?"}
+            <span className="font-bold text-sm uppercase tracking-tighter w-48 text-center">
+              {isSessionActive ? "NEWTON IS LISTENING" : "READY TO START"}
             </span>
           </div>
           
           <button 
-            className={`flex items-center space-x-2 px-6 py-3 rounded-full font-bold text-white transition-all shadow-md ${isSessionActive ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-full font-bold text-sm uppercase tracking-tight transition-all border-2 border-black ${isSessionActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-black hover:bg-black hover:text-white'}`}
             onClick={toggleSession}
             disabled={isConnecting}
           >
-            {isConnecting ? <Loader2 size={20} className="animate-spin" /> : (isSessionActive ? <MicOff size={20} /> : <Mic size={20} />)}
-            <span>{isConnecting ? "Connecting..." : (isSessionActive ? "End Session" : "Start Session")}</span>
+            {isConnecting ? <Loader2 size={16} className="animate-spin" /> : (isSessionActive ? <MicOff size={16} /> : <Mic size={16} />)}
+            <span>{isConnecting ? "CONNECTING" : (isSessionActive ? "END SESSION" : "START")}</span>
           </button>
         </div>
       </div>
