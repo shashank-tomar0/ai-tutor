@@ -35,12 +35,16 @@ export default function CanvasPage() {
     const stopRecording = rrweb.record({
       emit(event) {
         rrwebEventsRef.current.push(event);
+        // Prevent memory leak by keeping only the last 1000 events
+        if (rrwebEventsRef.current.length > 1000) {
+           rrwebEventsRef.current.shift();
+        }
       },
     });
     return () => {
       if (stopRecording) stopRecording();
     };
-  }, []);
+  }, [router]);
 
   const handleMount = useCallback((editor: Editor) => {
     setEditor(editor);
@@ -136,7 +140,7 @@ export default function CanvasPage() {
 
   return (
     <div style={{ position: 'fixed', inset: 0 }} className="bg-white font-sans text-black">
-      <Tldraw onMount={handleMount} />
+      <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v1" />
 
       {/* Back to home */}
       <div className="absolute top-4 left-4 z-50">

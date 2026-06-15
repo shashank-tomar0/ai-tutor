@@ -20,25 +20,40 @@ export default function DashboardPage() {
         return;
       }
 
-      // Load initial interventions
-      const { data: initialInterventions } = await supabase
+      // Load initial interventions for the feed (latest 10)
+      const { data: feedData } = await supabase
         .from('interventions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(10);
         
-      if (initialInterventions) {
-        setStruggling(initialInterventions);
+      if (feedData) {
+        setStruggling(feedData);
       }
 
-      // Load heatmap (mock for now, or from another table)
-      setHeatmap([
-        {"concept": "Fractions", "score": 85},
-        {"concept": "Decimals", "score": 92},
-        {"concept": "Algebra", "score": 78},
-        {"concept": "Geometry", "score": 65},
-        {"concept": "Trig", "score": 45}
-      ] as any);
+      // Load interventions for the heatmap (latest 100)
+      const { data: heatData } = await supabase
+        .from('interventions')
+        .select('concept')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (heatData) {
+        const counts: Record<string, number> = {};
+        heatData.forEach(item => {
+          const concept = item.concept || 'General';
+          counts[concept] = (counts[concept] || 0) + 1;
+        });
+
+        const mappedHeatmap = Object.keys(counts).map(key => ({
+          concept: key,
+          score: counts[key] * 10 // scale up visually
+        }));
+
+        setHeatmap(mappedHeatmap.length > 0 ? mappedHeatmap : [
+          {"concept": "Awaiting Data", "score": 10}
+        ] as any);
+      }
       
       setLoading(false);
     }
@@ -83,16 +98,16 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 min-h-[calc(100vh-80px)]">
         
         {/* Left Panel - Charts */}
-        <div className="border-r border-black p-8 flex flex-col">
-          <div className="flex justify-between items-end mb-12 border-b border-black pb-4">
-             <div className="text-4xl font-normal tracking-tighter">01.</div>
-             <h2 className="text-4xl font-medium tracking-tighter uppercase text-right">CONCEPT MASTERY</h2>
+        <div className="border-b md:border-b-0 md:border-r border-black p-4 md:p-8 flex flex-col">
+          <div className="flex justify-between items-end mb-8 md:mb-12 border-b border-black pb-4">
+             <div className="text-2xl md:text-4xl font-normal tracking-tighter">01.</div>
+             <h2 className="text-2xl md:text-4xl font-medium tracking-tighter uppercase text-right">CONCEPT MASTERY</h2>
           </div>
 
           {loading ? (
             <div className="flex-1 flex justify-center items-center font-bold tracking-widest uppercase">LOADING DATABASES...</div>
           ) : (
-            <div className="flex-1 w-full min-h-[400px]">
+            <div className="flex-1 w-full min-h-[300px] md:min-h-[400px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={heatmap}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#000" vertical={false} />
@@ -106,11 +121,11 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Panel - Interventions */}
-        <div className="p-8 bg-[#f9f9f9] h-[calc(100vh-80px)] overflow-y-auto">
-           <div className="flex justify-between items-end mb-12 border-b border-black pb-4 sticky top-0 bg-[#f9f9f9] z-10 pt-4">
-             <div className="text-4xl font-normal tracking-tighter text-red-600">02.</div>
-             <h2 className="text-4xl font-medium tracking-tighter uppercase text-right text-red-600 flex items-center gap-4">
-                <span className="w-4 h-4 bg-red-600 rounded-full animate-pulse"></span>
+        <div className="p-4 md:p-8 bg-[#f9f9f9] h-[calc(100vh-80px)] overflow-y-auto">
+           <div className="flex justify-between items-end mb-8 md:mb-12 border-b border-black pb-4 sticky top-0 bg-[#f9f9f9] z-10 pt-4">
+             <div className="text-2xl md:text-4xl font-normal tracking-tighter text-red-600">02.</div>
+             <h2 className="text-2xl md:text-4xl font-medium tracking-tighter uppercase text-right text-red-600 flex items-center gap-2 md:gap-4">
+                <span className="w-3 h-3 md:w-4 md:h-4 bg-red-600 rounded-full animate-pulse"></span>
                 LIVE INTERVENTIONS
              </h2>
           </div>

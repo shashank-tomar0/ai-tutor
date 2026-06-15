@@ -64,10 +64,10 @@ export default function LandingPage() {
 
         {/* Massive Typography */}
         <div className="text-center w-full max-w-[1400px] mx-auto flex flex-col items-center">
-          <h1 className="text-[16vw] leading-[0.8] font-medium tracking-tightest m-0 p-0 text-center uppercase">
+          <h1 className="text-[24vw] md:text-[16vw] leading-[0.8] font-medium tracking-tightest m-0 p-0 text-center uppercase">
             NEWTON
           </h1>
-          <h1 className="text-[16vw] leading-[0.8] font-medium tracking-tightest m-0 p-0 text-center uppercase">
+          <h1 className="text-[24vw] md:text-[16vw] leading-[0.8] font-medium tracking-tightest m-0 p-0 text-center uppercase">
             AI TUTOR&apos;S
           </h1>
         </div>
