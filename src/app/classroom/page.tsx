@@ -18,7 +18,6 @@ export default function CanvasPage() {
   
   const rrwebEventsRef = useRef<any[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
-  const recognitionRef = useRef<any>(null);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
 
   useEffect(() => {
@@ -50,87 +49,152 @@ export default function CanvasPage() {
     setEditor(editor);
   }, []);
 
-  // Web Speech API Setup
+  // Web Audio + MediaRecorder Setup for Bulletproof VAD
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const isSpeakingRef = useRef(false);
+  const isProcessingRef = useRef(false);
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = false;
+    if (!isSessionActive) return;
 
-        recognitionRef.current.onresult = async (event: any) => {
-          const transcript = event.results[event.results.length - 1][0].transcript;
-          console.log("🎤 Heard:", transcript);
-          
-          if (!isSessionActive) return;
+    let animationFrameId: number;
 
-          try {
-            // Pause recognition while thinking/speaking
-            try { recognitionRef.current?.stop(); } catch(e) {}
+    const startMicrophone = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = audioContext;
+        
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 512;
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
 
-            const shapes = editor ? editor.getCurrentPageShapes() : [];
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ transcript, shapes })
-            });
-            const data = await res.json();
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
 
-            if (data.type === "ai_response") {
-              console.log("🤖 AI says:", data.text);
-              const utterance = new SpeechSynthesisUtterance(data.text);
-              utterance.onend = () => {
-                // Resume listening
-                if (isSessionActive) {
-                  try { recognitionRef.current?.start(); } catch(e) {}
-                }
-              };
-              if (synthesisRef.current) synthesisRef.current.speak(utterance);
-            }
-          } catch (e) {
-             console.error("Failed to fetch AI response", e);
-             if (isSessionActive) {
-                try { recognitionRef.current?.start(); } catch(err) {}
-             }
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
           }
         };
 
-        recognitionRef.current.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          
-          if (event.error === 'network') {
-            setIsSessionActive(false);
-            alert("Speech recognition network error. This may happen if your browser cannot connect to its speech servers or if you are using an ad-blocker. Please check your connection and try again.");
-          } else if (event.error === 'not-allowed' || event.error === 'audio-capture') {
-            setIsSessionActive(false);
-            alert("Microphone access is required. Please allow microphone permissions and try again.");
+        mediaRecorder.onstop = async () => {
+          if (audioChunksRef.current.length === 0) return;
+          if (isProcessingRef.current) return;
+
+          isProcessingRef.current = true;
+          setIsConnecting(true);
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          audioChunksRef.current = []; // clear for next recording
+
+          // Prevent sending empty/tiny audio
+          if (audioBlob.size > 1000) {
+            try {
+              const formData = new FormData();
+              formData.append('file', audioBlob, 'audio.webm');
+              const shapes = editor ? editor.getCurrentPageShapes() : [];
+              formData.append('shapes', JSON.stringify(shapes));
+
+              const res = await fetch("/api/chat-audio", {
+                method: "POST",
+                body: formData
+              });
+              
+              const data = await res.json();
+              if (data.transcript) {
+                 console.log("🎤 Heard:", data.transcript);
+              }
+              
+              if (data.type === "ai_response") {
+                console.log("🤖 AI says:", data.text);
+                const utterance = new SpeechSynthesisUtterance(data.text);
+                utterance.onend = () => {
+                   isProcessingRef.current = false;
+                   setIsConnecting(false);
+                };
+                if (synthesisRef.current) synthesisRef.current.speak(utterance);
+              } else {
+                isProcessingRef.current = false;
+                setIsConnecting(false);
+              }
+            } catch (e) {
+              console.error("Failed to send audio", e);
+              isProcessingRef.current = false;
+              setIsConnecting(false);
+            }
           } else {
-            // For other errors, we might want to just restart if session is active
-            if (isSessionActive) {
-               try { recognitionRef.current?.start(); } catch(e) {}
-            }
+             isProcessingRef.current = false;
+             setIsConnecting(false);
           }
         };
-      } else {
-         console.warn("Web Speech API not supported in this browser.");
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        const checkAudio = () => {
+          if (!isSessionActive) return;
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          const average = sum / dataArray.length;
+
+          // Simple Voice Activity Detection
+          if (average > 15 && !isProcessingRef.current) {
+            // User is speaking
+            if (mediaRecorder.state === 'inactive') {
+               mediaRecorder.start();
+               isSpeakingRef.current = true;
+               console.log("Started recording...");
+            }
+            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+            
+            silenceTimeoutRef.current = setTimeout(() => {
+               if (mediaRecorder.state === 'recording') {
+                  mediaRecorder.stop();
+                  isSpeakingRef.current = false;
+                  console.log("Stopped recording due to silence.");
+               }
+            }, 1500); // 1.5 seconds of silence triggers stop
+          }
+
+          animationFrameId = requestAnimationFrame(checkAudio);
+        };
+
+        checkAudio();
+
+      } catch (err) {
+        console.error("Error accessing mic:", err);
+        setIsSessionActive(false);
+        alert("Microphone access is required.");
       }
-    }
+    };
+
+    startMicrophone();
+
+    return () => {
+       if (animationFrameId) cancelAnimationFrame(animationFrameId);
+       if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+       }
+       if (audioContextRef.current) {
+          audioContextRef.current.close();
+       }
+    };
   }, [editor, isSessionActive]);
 
   const toggleSession = () => {
     if (isSessionActive) {
       // Disconnect
       setIsSessionActive(false);
-      recognitionRef.current?.stop();
       if (synthesisRef.current) synthesisRef.current.cancel();
     } else {
       // Connect
       setIsSessionActive(true);
-      try {
-          recognitionRef.current?.start();
-      } catch(e) {}
-      
       // Initial greeting
       const msg = "Hello! I'm Newton. I can see your canvas. What are we working on today?";
       const utterance = new SpeechSynthesisUtterance(msg);
