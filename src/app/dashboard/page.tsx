@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../utils/supabase';
+import { supabase } from '@/utils/supabase';
 
 export default function DashboardPage() {
   const [heatmap, setHeatmap] = useState([]);
