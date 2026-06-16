@@ -22,10 +22,10 @@ export async function POST(req: Request) {
     const transcription = await groq.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-large-v3",
-      response_format: "text"
+      response_format: "json"
     });
 
-    const transcript = transcription; // Groq returns raw text when response_format="text"
+    const transcript = transcription.text;
     console.log("Transcribed:", transcript);
 
     if (!transcript || transcript.trim() === '') {
