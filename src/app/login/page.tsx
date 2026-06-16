@@ -11,16 +11,46 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
+    async function handleAuthRedirect(session: any) {
+      if (!session) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (error || !data?.role) {
+          const fallbackRole = localStorage.getItem(`newton_role_${session.user.id}`);
+          if (fallbackRole) {
+            router.push(fallbackRole === 'teacher' ? '/dashboard' : '/classroom');
+          } else {
+            router.push('/login/role-select');
+          }
+        } else {
+          router.push(data.role === 'teacher' ? '/dashboard' : '/classroom');
+        }
+      } catch (err) {
+        const fallbackRole = localStorage.getItem(`newton_role_${session.user.id}`);
+        if (fallbackRole) {
+          router.push(fallbackRole === 'teacher' ? '/dashboard' : '/classroom');
+        } else {
+          router.push('/login/role-select');
+        }
+      }
+    }
+
     // Check if already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        router.push('/dashboard');
+        handleAuthRedirect(session);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
-        router.push('/dashboard');
+        handleAuthRedirect(session);
       }
     });
 

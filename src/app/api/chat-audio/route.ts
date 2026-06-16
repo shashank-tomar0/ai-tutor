@@ -11,27 +11,30 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const audioFile = formData.get('file') as File;
+    const audioFile = formData.get('file') as File | null;
+    const textDirect = formData.get('text') as string | null;
     const shapesRaw = formData.get('shapes') as string;
     
-    if (!audioFile) {
-      return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
+    let transcript = "";
+    if (textDirect) {
+      transcript = textDirect;
+    } else if (audioFile) {
+      const transcription = await groq.audio.transcriptions.create({
+        file: audioFile,
+        model: "whisper-large-v3",
+        response_format: "json"
+      });
+      transcript = transcription.text;
+    } else {
+      return NextResponse.json({ error: 'No audio or text provided' }, { status: 400 });
     }
 
-    // 1. Transcribe the audio using Groq Whisper
-    const transcription = await groq.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-large-v3",
-      response_format: "json"
-    });
-
-    const transcript = transcription.text;
-    console.log("Transcribed:", transcript);
+    console.log("Input text:", transcript);
 
     if (!transcript || transcript.trim() === '') {
         return NextResponse.json({
             type: "ai_response",
-            text: "I didn't quite catch that. Could you speak up?",
+            text: "I didn't quite catch that. Could you speak up or type your message?",
             transcript: ""
         });
     }
