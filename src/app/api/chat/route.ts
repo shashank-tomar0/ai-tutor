@@ -10,7 +10,12 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request) {
   try {
-    const { transcript, shapes } = await req.json();
+    const { transcript, shapes, skill } = await req.json();
+
+    let skillContext = "";
+    if (skill) {
+      skillContext = `Current skill focus: ${skill.name}${skill.description ? ` — ${skill.description}` : ''}`;
+    }
 
     // 1. Summarize the shapes on the canvas for the LLM
     let canvasContext = "The canvas is empty.";
@@ -28,13 +33,14 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `You are Newton, an expert Socratic tutor. 
+          content: `You are Newton, an expert Socratic tutor.
           The student's canvas state is: ${canvasContext}.
-          
+          ${skillContext ? skillContext + '.' : ''}
+
           Analyze the student's message and determine if they are struggling (frustrated, asking for direct help, or completely wrong).
           If they are struggling, set "is_struggling" to true, "concept" to the math concept they are struggling with, and provide a Socratic "response_text".
           If they are doing fine, set "is_struggling" to false and provide a normal encouraging "response_text".
-          
+
           Respond ONLY in this JSON format:
           {
             "is_struggling": boolean,

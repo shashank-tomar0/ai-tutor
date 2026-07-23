@@ -14,7 +14,16 @@ export async function POST(req: Request) {
     const audioFile = formData.get('file') as File | null;
     const textDirect = formData.get('text') as string | null;
     const shapesRaw = formData.get('shapes') as string;
-    
+    const skillRaw = formData.get('skill') as string;
+
+    let skillContext = "";
+    if (skillRaw) {
+      try {
+        const skill = JSON.parse(skillRaw);
+        skillContext = `Current skill focus: ${skill.name}${skill.description ? ` — ${skill.description}` : ''}`;
+      } catch(e) {}
+    }
+
     let transcript = "";
     if (textDirect) {
       transcript = textDirect;
@@ -58,13 +67,14 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `You are Newton, an expert Socratic tutor. 
+          content: `You are Newton, an expert Socratic tutor.
           The student's canvas state is: ${canvasContext}.
-          
+          ${skillContext ? skillContext + '.' : ''}
+
           Analyze the student's message and determine if they are struggling (frustrated, asking for direct help, or completely wrong).
           If they are struggling, set "is_struggling" to true, "concept" to the math concept they are struggling with, and provide a Socratic "response_text".
           If they are doing fine, set "is_struggling" to false and provide a normal encouraging "response_text".
-          
+
           Respond ONLY in this JSON format:
           {
             "is_struggling": boolean,
@@ -85,10 +95,12 @@ export async function POST(req: Request) {
 
     // 4. Log to Supabase if struggling
     if (result.is_struggling) {
+      const skillId = skillRaw ? JSON.parse(skillRaw).id : null;
       const { error } = await supabase.from('interventions').insert([{
         student_name: 'Student ' + Math.floor(Math.random() * 1000),
         concept: result.concept || 'General',
-        struggle: transcript
+        struggle: transcript,
+        skill_id: skillId
       }]);
 
       if (error) console.error("Supabase insert error:", error);

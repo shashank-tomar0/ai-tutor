@@ -3,11 +3,36 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { Mic, MicOff, Brain, Loader2, ArrowLeft, Send, Volume2, VolumeX, Database, HelpCircle } from 'lucide-react';
+import { Mic, MicOff, Brain, Loader2, ArrowLeft, Send, Volume2, VolumeX, Database, HelpCircle, ChevronLeft, ChevronRight, Sparkles, Target, BookOpen, Award } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
+
+// ============================================================================
+// SKILL TREE TYPES
+// ============================================================================
+
+interface Skill {
+  id: string;
+  name: string;
+  subject: string;
+  parent_id: string | null;
+  difficulty: number;
+  icon: string;
+  order_index: number;
+  description: string;
+  mastery_level: number;
+  attempts: number;
+  children?: Skill[];
+  prerequisites_met?: boolean;
+}
+
+interface SkillRecommendation {
+  skill: Skill;
+  reason: string;
+  unlocks: number;
+}
 
 export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -17,7 +42,14 @@ export default function CanvasPage() {
   const [textInput, setTextInput] = useState("");
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
-  
+
+  // Skill tree state
+  const [skillTree, setSkillTree] = useState<Skill[]>([]);
+  const [skillRecommendations, setSkillRecommendations] = useState<SkillRecommendation[]>([]);
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [showSkillPanel, setShowSkillPanel] = useState(true);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(true);
+
   const rrwebEventsRef = useRef<any[]>([]);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
 
@@ -32,6 +64,10 @@ export default function CanvasPage() {
     });
 
     synthesisRef.current = window.speechSynthesis;
+
+    // Fetch skill tree with progress
+    fetchSkills();
+    fetchRecommendations();
     
     // Start recording DOM events silently
     const stopRecording = rrweb.record({
@@ -52,7 +88,119 @@ export default function CanvasPage() {
     setEditor(editor);
   }, []);
 
+  // ============================================================================
+  // SKILL TREE DATA FETCHING
+  // ============================================================================
+
+  const fetchSkills = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+
+      const res = await fetch(`/api/skills?userId=${session.user.id}`);
+      const data = await res.json();
+      if (data.skills) {
+        setSkillTree(data.skills);
+      }
+    } catch (err) {
+      console.warn("Could not fetch skills tree, using empty state.", err);
+    } finally {
+      setIsLoadingSkills(false);
+    }
+  };
+
+  const fetchRecommendations = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+
+      const res = await fetch(`/api/skills/recommendations?userId=${session.user.id}`);
+      const data = await res.json();
+      if (data.candidates) {
+        setSkillRecommendations(data.candidates.map((c: any) => ({
+          skill: c.skill,
+          reason: c.reason,
+          unlocks: c.unlocks || 0,
+          priority: c.score
+        })));
+      }
+    } catch (err) {
+      console.warn("Could not fetch recommendations.", err);
+    }
+  };
+
+  const handleSkillSelect = (skill: Skill) => {
+    setSelectedSkill(skill);
+    // Skill context is injected into the next API call
+    const msg = `Let's work on ${skill.name}. ${skill.description}`;
+    speakResponse(msg);
+  };
+
+  // ============================================================================
+  // MASTERY UI HELPERS
+  // ============================================================================
+
+  const getMasteryColor = (mastery: number) => {
+    if (mastery === 0) return 'border-black/20 text-black/30';
+    if (mastery < 0.3) return 'border-red-500 text-red-600';
+    if (mastery < 0.6) return 'border-amber-500 text-amber-600';
+    if (mastery < 0.85) return 'border-blue-500 text-blue-600';
+    return 'border-green-500 text-green-600';
+  };
+
+  const getMasteryBg = (mastery: number) => {
+    if (mastery === 0) return 'bg-black/5';
+    if (mastery < 0.3) return 'bg-red-50';
+    if (mastery < 0.6) return 'bg-amber-50';
+    if (mastery < 0.85) return 'bg-blue-50';
+    return 'bg-green-50';
+  };
+
+  const getMasteryLabel = (mastery: number) => {
+    if (mastery === 0) return 'Not Started';
+    if (mastery < 0.3) return 'Struggling';
+    if (mastery < 0.6) return 'Developing';
+    if (mastery < 0.85) return 'Proficient';
+    return 'Mastered';
+  };
+
+  // Recursive skill tree renderer
+  const renderSkillNode = (skill: Skill, depth: number = 0) => {
+    const mastery = skill.mastery_level || 0;
+    const isSelected = selectedSkill?.id === skill.id;
+    const hasChildren = skill.children && skill.children.length > 0;
+
+    return (
+      <div key={skill.id}>
+        <button
+          onClick={() => handleSkillSelect(skill)}
+          className={`w-full text-left px-3 py-2 flex items-center gap-2 text-xs font-bold uppercase tracking-tight border-l-2 transition-all hover:bg-black hover:text-white group
+            ${isSelected ? 'bg-black text-white border-l-black' : `border-transparent ${getMasteryColor(mastery)}`}
+          `}
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+          title={skill.description}
+        >
+          <span className="text-base flex-shrink-0">{skill.icon}</span>
+          <span className="flex-1 truncate">{skill.name}</span>
+
+          {/* Mastery indicator */}
+          <div className="flex-shrink-0 flex items-center gap-1">
+            {mastery > 0 && (
+              <div className={`w-1.5 h-1.5 rounded-full ${mastery >= 0.85 ? 'bg-green-500' : mastery >= 0.6 ? 'bg-blue-500' : mastery >= 0.3 ? 'bg-amber-500' : 'bg-red-500'}`} />
+            )}
+            {mastery >= 0.85 && <CheckCircle size={10} className="text-green-600" />}
+          </div>
+        </button>
+
+        {/* Children */}
+        {hasChildren && skill.children!.map((child: Skill) => renderSkillNode(child, depth + 1))}
+      </div>
+    );
+  };
+
+  // ============================================================================
   // Web Audio + MediaRecorder Setup for Bulletproof VAD
+  // ============================================================================
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -185,15 +333,22 @@ export default function CanvasPage() {
       formData.append('text', queryText);
       const shapes = editor ? editor.getCurrentPageShapes() : [];
       formData.append('shapes', JSON.stringify(shapes));
+      if (selectedSkill) {
+        formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name, description: selectedSkill.description }));
+      }
 
       const res = await fetch("/api/chat-audio", {
         method: "POST",
         body: formData
       });
-      
+
       const data = await res.json();
       if (data.type === "ai_response") {
         speakResponse(data.text);
+        // Mark this as a successful skill interaction
+        if (selectedSkill && data.is_struggling === false) {
+          updateSkillProgress(user?.id, selectedSkill.id, true);
+        }
       } else {
         isProcessingRef.current = false;
         setIsConnecting(false);
@@ -246,17 +401,20 @@ export default function CanvasPage() {
               formData.append('file', audioBlob, 'audio.webm');
               const shapes = editor ? editor.getCurrentPageShapes() : [];
               formData.append('shapes', JSON.stringify(shapes));
+              if (selectedSkill) {
+                formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name }));
+              }
 
               const res = await fetch("/api/chat-audio", {
                 method: "POST",
                 body: formData
               });
-              
+
               const data = await res.json();
               if (data.transcript) {
                  console.log("🎤 Heard:", data.transcript);
               }
-              
+
               if (data.type === "ai_response") {
                 console.log("🤖 AI says:", data.text);
                 speakResponse(data.text);
@@ -335,8 +493,30 @@ export default function CanvasPage() {
     } else {
       setIsSessionActive(true);
       rrwebEventsRef.current = [];
-      const msg = "Hello! I'm Newton. I can see your canvas. What are we working on today?";
+      const skillCtx = selectedSkill ? ` Let's focus on ${selectedSkill.name}.` : '';
+      const msg = `Hello! I'm Newton. I can see your canvas.${skillCtx} What are we working on today?`;
       speakResponse(msg);
+    }
+  };
+
+  // ============================================================================
+  // SKILL PROGRESS UPDATE
+  // ============================================================================
+
+  const updateSkillProgress = async (userId: string | undefined, skillId: string, success: boolean) => {
+    if (!userId) return;
+    try {
+      await fetch('/api/skills/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, skillId, success })
+      });
+      // Refresh recommendations after update
+      fetchRecommendations();
+      // Refresh skill tree to show updated progress
+      fetchSkills();
+    } catch (err) {
+      console.warn("Failed to update skill progress:", err);
     }
   };
 
@@ -346,10 +526,23 @@ export default function CanvasPage() {
 
       {/* Top Controls Bar */}
       <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-center pointer-events-none">
-        <Link href="/" className="pointer-events-auto flex items-center space-x-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <ArrowLeft size={14} />
-          <span>INDEX</span>
-        </Link>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <Link href="/" className="flex items-center space-x-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <ArrowLeft size={14} />
+            <span>INDEX</span>
+          </Link>
+
+          {/* Skill Tree Toggle */}
+          <button
+            onClick={() => setShowSkillPanel(!showSkillPanel)}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all border-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-0.5 active:translate-y-0.5
+              ${showSkillPanel ? 'bg-black text-white border-black' : 'bg-white text-black border-black hover:bg-black hover:text-white'}`}
+            title="Toggle Skill Tree"
+          >
+            <Target size={14} />
+            <span>SKILLS</span>
+          </button>
+        </div>
 
         {/* Voice Selector and Settings (Brutalist Style) */}
         <div className="pointer-events-auto bg-white border-2 border-black p-1.5 px-3 rounded-full flex items-center space-x-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-xs font-bold">
@@ -378,6 +571,94 @@ export default function CanvasPage() {
           </button>
         </div>
       </div>
+
+      {/* Skill Tree Sidebar Panel */}
+      {showSkillPanel && (
+        <div className="absolute top-20 left-4 z-40 w-[320px] max-h-[calc(100vh-120px)] bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col">
+          {/* Header */}
+          <div className="border-b-2 border-black p-4 flex items-center justify-between bg-white sticky top-0 z-10">
+            <div className="flex items-center gap-2">
+              <Target size={16} className="stroke-[1.5]" />
+              <span className="text-xs font-bold uppercase tracking-widest">LEARNING PATH</span>
+            </div>
+            <button
+              onClick={() => setShowSkillPanel(false)}
+              className="p-1 hover:bg-black hover:text-white transition-colors border border-black rounded-full"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
+
+          {/* Recommendations Alert */}
+          {skillRecommendations.length > 0 && !isLoadingSkills && (
+            <div className="border-b-2 border-black bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <Sparkles size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-amber-800 mb-0.5">RECOMMENDED NEXT</div>
+                  <button
+                    onClick={() => {
+                      const topRec = skillRecommendations[0];
+                      const skill = skillTree.find(s => s.id === topRec?.skill?.id)
+                        || skillTree.flatMap(s => s.children || []).find(c => c.id === topRec?.skill?.id);
+                      if (skill) handleSkillSelect(skill);
+                    }}
+                    className="text-xs font-bold uppercase tracking-tight text-amber-900 hover:underline text-left"
+                  >
+                    {skillRecommendations[0]?.skill?.icon} {skillRecommendations[0]?.skill?.name}
+                    <span className="block text-[9px] font-normal normal-case text-amber-700">
+                      {skillRecommendations[0]?.reason}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Selected Skill Context */}
+          {selectedSkill && (
+            <div className={`border-b-2 border-black p-3 ${getMasteryBg(selectedSkill.mastery_level || 0)}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{selectedSkill.icon}</span>
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-tighter">{selectedSkill.name}</div>
+                    <div className={`text-[9px] font-bold uppercase tracking-widest ${getMasteryColor(selectedSkill.mastery_level || 0)}`}>
+                      {getMasteryLabel(selectedSkill.mastery_level || 0)}
+                      {selectedSkill.mastery_level > 0 && ` • ${Math.round((selectedSkill.mastery_level || 0) * 100)}%`}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedSkill(null)}
+                  className="text-[9px] font-bold uppercase tracking-wider border border-black px-2 py-1 rounded hover:bg-black hover:text-white transition-colors"
+                >
+                  CLEAR
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Skill Tree Scroll Area */}
+          <div className="flex-1 overflow-y-auto py-2">
+            {isLoadingSkills ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={16} className="animate-spin" />
+                <span className="ml-2 text-[10px] font-bold uppercase tracking-widest">Loading skills...</span>
+              </div>
+            ) : skillTree.length === 0 ? (
+              <div className="p-6 text-center">
+                <BookOpen size={24} className="mx-auto mb-2 text-black/30" />
+                <div className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+                  No skills loaded.<br/>Run the schema migration first.
+                </div>
+              </div>
+            ) : (
+              skillTree.map(skill => renderSkillNode(skill, 0))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Bottom Toolbar & Text Input */}
       <div className="z-50 absolute bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-[680px]">
