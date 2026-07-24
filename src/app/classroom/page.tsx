@@ -58,19 +58,16 @@ export default function CanvasPage() {
   const msgIdCounter = useRef(0);
 
   // ==========================================================================
-  // Load SpeechSynthesis voices (needed before speak() works)
+  // Load SpeechSynthesis voices (needed before speak() works in Chrome)
   // ==========================================================================
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     synthesisRef.current = window.speechSynthesis;
 
-    // Chrome loads voices asynchronously
+    // Chrome loads voices asynchronously — pre-warm them
     const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices.length > 0) {
-        voicesLoadedRef.current = true;
-      }
+      window.speechSynthesis.getVoices(); // Triggers Chrome to populate
     };
 
     loadVoices();
@@ -155,7 +152,7 @@ export default function CanvasPage() {
   }, []);
 
   // ==========================================================================
-  // TTS (Text-to-Speech) — Always fallback to browser SpeechSynthesis for reliability
+  // TTS (Text-to-Speech) — Browser SpeechSynthesis (was working before, keep simple)
   // ==========================================================================
 
   const speakResponse = useCallback(async (text: string) => {
@@ -173,108 +170,51 @@ export default function CanvasPage() {
       return;
     }
 
-    // Try OpenRouter TTS first, then fallback to browser SpeechSynthesis
-    if (voiceType === 'human') {
-      try {
-        const res = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-
-        const contentType = res.headers.get('content-type') || '';
-
-        if (contentType.includes('audio/mpeg')) {
-          // Success! Play the audio
-          const audioBlob = await res.blob();
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-            setCaptionsTyping(false);
-            setTimeout(() => setCaptionsVisible(false), 2000);
-            isProcessingRef.current = false;
-            setIsConnecting(false);
-          };
-          audio.onerror = (e) => {
-            URL.revokeObjectURL(audioUrl);
-            console.warn('Audio playback error, using system TTS:', e);
-            speakSystem(text);
-          };
-          // Resume audio context if needed (autoplay policy)
-          await audio.play();
-        } else {
-          // Check if it's a JSON fallback response
-          const clone = res.clone();
-          const data = await clone.json().catch(() => null);
-          if (data?.fallback) {
-            speakSystem(text);
-          } else {
-            speakSystem(text);
-          }
-        }
-      } catch (err) {
-        console.warn('OpenRouter TTS failed, using system TTS:', err);
-        speakSystem(text);
-      }
-    } else {
-      speakSystem(text);
-    }
-  }, [voiceType]);
-
-  const speakSystem = useCallback((text: string) => {
-    // Use browser's native SpeechSynthesis
-    // This requires user gesture context to work reliably
+    // Use browser SpeechSynthesis directly — no API calls, no auth, always works
     try {
-      if (!synthesisRef.current) {
-        synthesisRef.current = window.speechSynthesis;
+      const synth = window.speechSynthesis;
+      if (!synth) {
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+        return;
       }
 
-      const synth = synthesisRef.current;
-      // Cancel any previous speech
+      // Cancel previous speech
       synth.cancel();
 
-      // Small delay to let cancel settle
-      setTimeout(() => {
-        const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(text);
 
-        // Pick a voice if available (prefer a natural English voice)
-        const voices = synth.getVoices();
-        const preferredVoice = voices.find(v =>
-          v.lang.startsWith('en') && !v.name.includes('Microsoft') && v.name.includes('Natural')
-        ) || voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
-          voices.find(v => v.lang.startsWith('en'));
+      // Try to pick a male voice — Microsoft David or Google US English male
+      const voices = synth.getVoices();
+      const maleVoice = voices.find(v => v.name.includes('David') || v.name.includes('Male') || v.name.includes('male'))
+        || voices.find(v => v.name.includes('Google UK English Male'))
+        || voices.find(v => v.name.includes('Google US English'))
+        || voices.find(v => v.lang.startsWith('en'));
 
-        if (preferredVoice) utterance.voice = preferredVoice;
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
+      if (maleVoice) utterance.voice = maleVoice;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
-        utterance.onstart = () => {
-          console.log('Speech started');
-        };
+      utterance.onend = () => {
+        setCaptionsTyping(false);
+        setTimeout(() => setCaptionsVisible(false), 2000);
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+      };
 
-        utterance.onend = () => {
-          setCaptionsTyping(false);
-          setTimeout(() => setCaptionsVisible(false), 2000);
-          isProcessingRef.current = false;
-          setIsConnecting(false);
-        };
+      utterance.onerror = () => {
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+      };
 
-        utterance.onerror = (event) => {
-          console.warn('SpeechSynthesis error:', event.error);
-          isProcessingRef.current = false;
-          setIsConnecting(false);
-        };
-
-        synth.speak(utterance);
-      }, 50);
+      synth.speak(utterance);
     } catch (err) {
       console.error('SpeechSynthesis failed:', err);
       isProcessingRef.current = false;
       setIsConnecting(false);
     }
-  }, []);
+  }, [voiceType]);
 
   // ==========================================================================
   // SEND MESSAGE TO AI
