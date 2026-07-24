@@ -58,10 +58,29 @@ export default function CanvasPage() {
     window.addEventListener('click', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
 
+    // Listen for headphone / Bluetooth device connection changes
+    const handleDeviceChange = () => {
+      const synth = window.speechSynthesis;
+      if (synth) {
+        try {
+          synth.cancel();
+          synth.resume();
+          synth.getVoices();
+        } catch (_e) {}
+      }
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    }
+
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
       window.removeEventListener('click', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.removeEventListener) {
+        navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      }
     };
   }, []);
 
@@ -492,14 +511,15 @@ export default function CanvasPage() {
 
     setTimeout(() => {
       try {
-        synth.speak(utterance);
         if (synth.paused) synth.resume();
+        synth.speak(utterance);
+        synth.resume();
       } catch (e) {
         console.warn('synth.speak threw:', e);
         clearInterval(resumeTimer);
         setCaptionsVisible(false);
       }
-    }, 100);
+    }, 80);
   }, [voiceType]);
 
   // ==========================================================================
@@ -852,7 +872,15 @@ export default function CanvasPage() {
             onVoiceTypeChange={setVoiceType}
             onClearChat={() => setMessages([])}
             onClearCanvas={clearCanvas}
-            onTestVoice={() => speakText("Hello! Audio is working. I am Newton, your Socratic AI tutor.")}
+            onTestVoice={() => {
+              if (typeof window !== 'undefined' && window.speechSynthesis) {
+                try {
+                  window.speechSynthesis.cancel();
+                  window.speechSynthesis.resume();
+                } catch (_e) {}
+              }
+              speakText("Audio route active! Audio is now playing through your connected headphones.");
+            }}
           />
         </div>
       </div>
