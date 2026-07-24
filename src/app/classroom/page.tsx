@@ -11,6 +11,7 @@ import { supabase } from '@/utils/supabase';
 import ChatSidebar, { ChatMessage } from '@/components/ChatSidebar';
 import CaptionsBar from '@/components/CaptionsBar';
 import SkillTreeSidebar from '@/components/SkillTreeSidebar';
+import HandwritingModal from '@/components/HandwritingModal';
 import { SkillWithProgress } from '@/utils/skill-engine';
 
 export default function CanvasPage() {
@@ -20,6 +21,7 @@ export default function CanvasPage() {
   const [voiceType, setVoiceType] = useState<'human' | 'system' | 'mute'>('human');
   const [user, setUser] = useState<any>(null);
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
+  const [isHandwritingModalOpen, setIsHandwritingModalOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<SkillWithProgress | null>(null);
   const router = useRouter();
 
@@ -641,25 +643,17 @@ export default function CanvasPage() {
     sendToAI(text);
   }, [sendToAI]);
 
-  // Handle explicit Handwriting OCR & Solve request
-  const handleReadHandwriting = useCallback(async () => {
+  // Handle explicit Handwriting Modal submission
+  const handleSolveHandwriting = useCallback(async (imageBase64: string) => {
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
     setIsConnecting(true);
 
     try {
-      const imageBase64 = await captureCanvasImage();
-      if (!imageBase64) {
-        addMessage('ai', "I don't see any handwriting or drawings on the canvas yet! Use the pen tool to write an equation or diagram, then click 'READ HANDWRITING' again.");
-        isProcessingRef.current = false;
-        setIsConnecting(false);
-        return;
-      }
-
-      addMessage('user', "✏️ [Reading Handwritten Math & Diagrams on Whiteboard...]");
+      addMessage('user', "✏️ [Submitted Handwriting from PenEcho Scratchpad...]");
 
       const formData = new FormData();
-      formData.append('text', "The student wrote math, code, or equations by hand on the whiteboard. Perform high-accuracy OCR on the handwritten text, equations, or diagrams. Explain what you recognize in response_text (e.g. 'I read your handwritten equation: 2x + 5 = 15'), then solve it step-by-step using PenEcho visual shape cards!");
+      formData.append('text', "The student wrote math, code, or equations by hand on the PenEcho handwriting scratchpad. Perform high-accuracy OCR on the handwritten text, equations, or diagrams. Explain what you recognize in response_text (e.g. 'I read your handwritten equation: 2x + 5 = 15'), then solve it step-by-step using PenEcho visual shape cards!");
       formData.append('image', imageBase64);
       const shapes = editor ? editor.getCurrentPageShapes() : [];
       formData.append('shapes', JSON.stringify(shapes));
@@ -687,7 +681,7 @@ export default function CanvasPage() {
       isProcessingRef.current = false;
       setIsConnecting(false);
     }
-  }, [editor, selectedSkill, user, addMessage, writeToCanvas, speakText, captureCanvasImage]);
+  }, [editor, selectedSkill, user, addMessage, writeToCanvas, speakText]);
 
   // Handle audio blob from ChatSidebar mic button
   const handleSendAudio = useCallback(async (blob: Blob) => {
@@ -933,14 +927,14 @@ export default function CanvasPage() {
             <span className="hidden sm:inline">IMPORT ASSIGNMENT</span>
           </button>
 
-          {/* READ HANDWRITING & SOLVE BUTTON */}
+          {/* READ HANDWRITING SCRATCHPAD BUTTON */}
           <button
-            onClick={handleReadHandwriting}
-            title="Read handwritten math, text, or diagrams on whiteboard and solve"
+            onClick={() => setIsHandwritingModalOpen(true)}
+            title="Open PenEcho Handwriting Pad to write equations or diagrams freehand"
             className="flex items-center gap-1.5 border-2 border-black bg-amber-400 text-black px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] hover:bg-amber-300 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-px active:translate-y-px"
           >
             <span>✏️</span>
-            <span>READ HANDWRITING & SOLVE</span>
+            <span>HANDWRITING PAD</span>
           </button>
         </div>
 
@@ -1025,6 +1019,12 @@ export default function CanvasPage() {
           setSelectedSkill(skill);
           setIsSkillTreeOpen(false);
         }}
+      />
+      {/* ============ HANDWRITING SCRATCHPAD MODAL ============ */}
+      <HandwritingModal
+        isOpen={isHandwritingModalOpen}
+        onClose={() => setIsHandwritingModalOpen(false)}
+        onSolveHandwriting={handleSolveHandwriting}
       />
     </div>
   );
