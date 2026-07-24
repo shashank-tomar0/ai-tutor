@@ -226,7 +226,7 @@ export default function CanvasPage() {
       const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
       if (!synth) { onFinish(); return; }
 
-      // Fix Chrome stuck synthesis bug
+      // Fix Chrome stuck synthesis state
       if (synth.speaking || synth.pending) {
         synth.cancel();
       }
@@ -234,24 +234,62 @@ export default function CanvasPage() {
         synth.resume();
       }
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voices = synth.getVoices();
-      utterance.voice = voices.find(v => v.name.includes('Google UK English Male') || v.name.includes('David') || v.name.includes('Male'))
-        || voices.find(v => v.lang.startsWith('en')) || null;
+      // Clean text of markdown formatting (asterisks, hashtags, backticks, LaTeX)
+      const cleanText = text
+        .replace(/[*#_`~\\$%\[\]]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!cleanText) { onFinish(); return; }
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
+      utterance.volume = 1.0;
 
-      utterance.onend = onFinish;
-      utterance.onerror = onFinish;
+      // Select available voice
+      const voices = synth.getVoices();
+      if (voices && voices.length > 0) {
+        const preferredVoice =
+          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David') || v.name.includes('Samantha') || v.name.includes('Male') || v.name.includes('Female'))) ||
+          voices.find(v => v.lang.startsWith('en')) ||
+          voices[0];
+        if (preferredVoice) utterance.voice = preferredVoice;
+      }
+
+      let isFinished = false;
+      const done = () => {
+        if (isFinished) return;
+        isFinished = true;
+        onFinish();
+      };
+
+      utterance.onend = done;
+      utterance.onerror = (e) => {
+        console.warn('SpeechSynthesis error:', e);
+        done();
+      };
+
+      // Periodic resume interval to bypass Chrome 15-second SpeechSynthesis silence bug
+      const resumeTimer = setInterval(() => {
+        if (!synth.speaking || isFinished) {
+          clearInterval(resumeTimer);
+        } else {
+          synth.resume();
+        }
+      }, 2500);
 
       setTimeout(() => {
         try {
           synth.speak(utterance);
-        } catch {
-          onFinish();
+        } catch (err) {
+          console.warn('synth.speak failed:', err);
+          clearInterval(resumeTimer);
+          done();
         }
       }, 50);
-    } catch {
+    } catch (err) {
+      console.warn('fallbackSpeechSynth catch:', err);
       onFinish();
     }
   };
