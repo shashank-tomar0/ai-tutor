@@ -64,6 +64,9 @@ export default function CanvasPage() {
     });
 
     synthesisRef.current = window.speechSynthesis;
+    // Warm up the voice list so the first native-fallback utterance actually speaks
+    // (some browsers return an empty voice list until `voiceschanged` fires).
+    window.speechSynthesis?.getVoices();
 
     // Fetch skill tree with progress
     fetchSkills();
@@ -301,21 +304,11 @@ export default function CanvasPage() {
       }]);
 
       if (error) throw error;
-      alert("🎉 Your session replay has been successfully saved to the Cloud Database!");
+      console.log("✅ Session replay saved to Supabase.");
     } catch (err) {
-      console.error("Failed to save replay to Supabase. Downloading local file fallback.", err);
-      
-      // Auto download JSON file
-      const blob = new Blob([JSON.stringify(rrwebEventsRef.current)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `newton-replay-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      alert("NOTICE: Database connection failed or migrations not applied yet. Your replay has been downloaded locally as a JSON file.");
+      // Fail silently — never interrupt the student with a forced download or alert.
+      // This usually just means the `session_replays` table/migration isn't set up yet.
+      console.warn("Could not save session replay to Supabase (skipping):", err);
     }
   };
 
@@ -552,7 +545,7 @@ export default function CanvasPage() {
             onClick={() => setVoiceType('human')}
             className={`px-3 py-1 rounded-full uppercase tracking-tighter transition-all ${voiceType === 'human' ? 'bg-black text-white' : 'bg-transparent text-black hover:bg-black/5'}`}
           >
-            ElevenLabs
+            AI Voice
           </button>
           
           <button 
