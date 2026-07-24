@@ -54,7 +54,32 @@ export default function CanvasPage() {
 
   const rrwebEventsRef = useRef<any[]>([]);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
+  const voicesLoadedRef = useRef(false);
   const msgIdCounter = useRef(0);
+
+  // ==========================================================================
+  // Load SpeechSynthesis voices (needed before speak() works)
+  // ==========================================================================
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    synthesisRef.current = window.speechSynthesis;
+
+    // Chrome loads voices asynchronously
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        voicesLoadedRef.current = true;
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
   // ==========================================================================
   // AUTH + INIT
@@ -90,22 +115,27 @@ export default function CanvasPage() {
   // Write AI explanation to the canvas as text shapes
   const writeToCanvas = useCallback(async (text: string) => {
     if (!editor) return;
-    // Create a text shape with the AI's explanation
-    // Position it in a visible area of the canvas
-    const center = (editor as any).getViewportPageBounds();
-    (editor as any).createShape({
-      type: 'text',
-      x: center.x + 40,
-      y: center.y + 40,
-      props: {
-        text: text,
-        color: 'black',
-        size: 'm',
-        font: 'sans',
-        w: Math.min(text.length * 6, 400),
-        autoSize: true,
-      },
-    });
+    try {
+      const center = (editor as any).getViewportPageBounds();
+      const lines = text.split('\n').filter(Boolean);
+      // Write each line as a separate text shape, stacked vertically
+      // First check if the shape type exists by trying the simplest approach
+      const shapes = lines.map((line: string, i: number) => ({
+        type: 'text' as const,
+        x: center.x + 40,
+        y: center.y + 40 + (i * 30),
+        props: {
+          text: line.slice(0, 80),
+          color: 'black' as const,
+          size: 'm' as const,
+          font: 'sans' as const,
+          w: Math.min(line.length * 8, 350),
+        },
+      }));
+      (editor as any).createShapes(shapes);
+    } catch (e) {
+      console.warn("Could not write text shape to canvas:", e);
+    }
   }, [editor]);
 
   // ==========================================================================
@@ -125,7 +155,7 @@ export default function CanvasPage() {
   }, []);
 
   // ==========================================================================
-  // TTS (Text-to-Speech)
+  // TTS (Text-to-Speech) — Always fallback to browser SpeechSynthesis for reliability
   // ==========================================================================
 
   const speakResponse = useCallback(async (text: string) => {
@@ -135,13 +165,15 @@ export default function CanvasPage() {
     setCaptionsTyping(true);
 
     if (voiceType === 'mute') {
-      setTimeout(() => { setCaptionsTyping(false); }, text.split(' ').length * 60);
-      setTimeout(() => { setCaptionsVisible(false); }, text.split(' ').length * 60 + 2000);
+      const wordCount = text.split(' ').length;
+      setTimeout(() => { setCaptionsTyping(false); }, wordCount * 60);
+      setTimeout(() => { setCaptionsVisible(false); }, wordCount * 60 + 2000);
       isProcessingRef.current = false;
       setIsConnecting(false);
       return;
     }
 
+    // Try OpenRouter TTS first, then fallback to browser SpeechSynthesis
     if (voiceType === 'human') {
       try {
         const res = await fetch('/api/tts', {
@@ -150,23 +182,39 @@ export default function CanvasPage() {
           body: JSON.stringify({ text }),
         });
 
-        const data = await res.clone().json().catch(() => null);
-        if (data?.fallback) {
-          speakSystem(text);
-        } else {
+        const contentType = res.headers.get('content-type') || '';
+
+        if (contentType.includes('audio/mpeg')) {
+          // Success! Play the audio
           const audioBlob = await res.blob();
           const audioUrl = URL.createObjectURL(audioBlob);
           const audio = new Audio(audioUrl);
           audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
             setCaptionsTyping(false);
             setTimeout(() => setCaptionsVisible(false), 2000);
             isProcessingRef.current = false;
             setIsConnecting(false);
           };
-          audio.onerror = () => { setCaptionsTyping(false); speakSystem(text); };
-          audio.play().catch(() => speakSystem(text));
+          audio.onerror = (e) => {
+            URL.revokeObjectURL(audioUrl);
+            console.warn('Audio playback error, using system TTS:', e);
+            speakSystem(text);
+          };
+          // Resume audio context if needed (autoplay policy)
+          await audio.play();
+        } else {
+          // Check if it's a JSON fallback response
+          const clone = res.clone();
+          const data = await clone.json().catch(() => null);
+          if (data?.fallback) {
+            speakSystem(text);
+          } else {
+            speakSystem(text);
+          }
         }
-      } catch {
+      } catch (err) {
+        console.warn('OpenRouter TTS failed, using system TTS:', err);
         speakSystem(text);
       }
     } else {
@@ -175,21 +223,54 @@ export default function CanvasPage() {
   }, [voiceType]);
 
   const speakSystem = useCallback((text: string) => {
-    if (synthesisRef.current) {
-      synthesisRef.current.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onend = () => {
-        setCaptionsTyping(false);
-        setTimeout(() => setCaptionsVisible(false), 2000);
-        isProcessingRef.current = false;
-        setIsConnecting(false);
-      };
-      utterance.onerror = () => {
-        isProcessingRef.current = false;
-        setIsConnecting(false);
-      };
-      synthesisRef.current.speak(utterance);
-    } else {
+    // Use browser's native SpeechSynthesis
+    // This requires user gesture context to work reliably
+    try {
+      if (!synthesisRef.current) {
+        synthesisRef.current = window.speechSynthesis;
+      }
+
+      const synth = synthesisRef.current;
+      // Cancel any previous speech
+      synth.cancel();
+
+      // Small delay to let cancel settle
+      setTimeout(() => {
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        // Pick a voice if available (prefer a natural English voice)
+        const voices = synth.getVoices();
+        const preferredVoice = voices.find(v =>
+          v.lang.startsWith('en') && !v.name.includes('Microsoft') && v.name.includes('Natural')
+        ) || voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+          voices.find(v => v.lang.startsWith('en'));
+
+        if (preferredVoice) utterance.voice = preferredVoice;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+
+        utterance.onstart = () => {
+          console.log('Speech started');
+        };
+
+        utterance.onend = () => {
+          setCaptionsTyping(false);
+          setTimeout(() => setCaptionsVisible(false), 2000);
+          isProcessingRef.current = false;
+          setIsConnecting(false);
+        };
+
+        utterance.onerror = (event) => {
+          console.warn('SpeechSynthesis error:', event.error);
+          isProcessingRef.current = false;
+          setIsConnecting(false);
+        };
+
+        synth.speak(utterance);
+      }, 50);
+    } catch (err) {
+      console.error('SpeechSynthesis failed:', err);
       isProcessingRef.current = false;
       setIsConnecting(false);
     }
