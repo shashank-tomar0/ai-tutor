@@ -405,27 +405,23 @@ export default function CanvasPage() {
 
 
   const speakText = useCallback((text: string) => {
+    // Immediately unlock processing lock so UI & mic are ready for next interaction
+    isProcessingRef.current = false;
+    setIsConnecting(false);
+
     setCaptionsText(text);
     setCaptionsVisible(true);
-    setCaptionsTyping(true);
-
-    const finishSpeaking = () => {
-      setCaptionsTyping(false);
-      setTimeout(() => setCaptionsVisible(false), 2000);
-      isProcessingRef.current = false;
-      setIsConnecting(false);
-    };
 
     if (voiceType === 'mute') {
-      finishSpeaking();
+      setTimeout(() => setCaptionsVisible(false), 4000);
       return;
     }
 
-    // Failsafe timeout: guarantee processing lock is released after 25s max
-    const safetyTimeout = setTimeout(finishSpeaking, 25000);
-
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-    if (!synth) { clearTimeout(safetyTimeout); finishSpeaking(); return; }
+    if (!synth) {
+      setTimeout(() => setCaptionsVisible(false), 4000);
+      return;
+    }
 
     // Clean markdown formatting from text for natural speech synthesis
     const cleanText = text
@@ -433,62 +429,60 @@ export default function CanvasPage() {
       .replace(/\s+/g, ' ')
       .trim();
 
-    if (!cleanText) { clearTimeout(safetyTimeout); finishSpeaking(); return; }
+    if (!cleanText) {
+      setTimeout(() => setCaptionsVisible(false), 4000);
+      return;
+    }
 
     // Cancel any previous utterance to avoid Chrome audio queue backlog
-    synth.cancel();
+    try {
+      synth.cancel();
+    } catch (_) {}
 
-    const doSpeak = () => {
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      utterance.lang = 'en-US';
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
 
-      // Pick best natural English voice from available browser voices
-      const voices = synth.getVoices();
-      if (voices && voices.length > 0) {
-        const pick =
-          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David'))) ||
-          voices.find(v => v.lang === 'en-US') ||
-          voices.find(v => v.lang.startsWith('en')) ||
-          voices[0];
-        if (pick) utterance.voice = pick;
-      }
+    // Pick best natural English voice from available browser voices
+    const voices = synth.getVoices();
+    if (voices && voices.length > 0) {
+      const pick =
+        voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David'))) ||
+        voices.find(v => v.lang === 'en-US') ||
+        voices.find(v => v.lang.startsWith('en')) ||
+        voices[0];
+      if (pick) utterance.voice = pick;
+    }
 
-      let done = false;
-      const finish = () => {
-        if (done) return;
-        done = true;
-        clearTimeout(safetyTimeout);
+    utterance.onend = () => {
+      setCaptionsVisible(false);
+    };
+    utterance.onerror = (e) => {
+      console.warn('SpeechSynthesis error:', e.error);
+      setCaptionsVisible(false);
+    };
+
+    // Periodic resume interval to bypass Chrome silence bug while utterance is playing
+    const resumeTimer = setInterval(() => {
+      if (!synth.speaking) {
         clearInterval(resumeTimer);
-        finishSpeaking();
-      };
-
-      utterance.onend = finish;
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e.error);
-        finish();
-      };
-
-      // Periodic resume to bypass Chrome 15-second SpeechSynthesis silence bug
-      const resumeTimer = setInterval(() => {
-        if (!synth.speaking || done) { clearInterval(resumeTimer); return; }
+      } else {
         synth.resume();
-      }, 2000);
+      }
+    }, 1500);
 
+    setTimeout(() => {
       try {
         synth.speak(utterance);
-        synth.resume(); // Immediately unpause if Chrome started in paused state
+        if (synth.paused) synth.resume();
       } catch (e) {
         console.warn('synth.speak threw:', e);
         clearInterval(resumeTimer);
-        finish();
+        setCaptionsVisible(false);
       }
-    };
-
-    // Wait 150ms after cancel so Chrome audio thread clears completely
-    setTimeout(doSpeak, 150);
+    }, 100);
   }, [voiceType]);
 
   // ==========================================================================
