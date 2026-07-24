@@ -7,10 +7,10 @@
   </picture>
 </p>
 
-<h1 align="center">🧠 Project Newton — The Cognitive AI Tutor</h1>
+<h1 align="center">Project Newton -- The Cognitive AI Tutor</h1>
 
 <p align="center">
-  <em>The world's first open-source Socratic AI co-pilot with real-time voice + spatial canvas intelligence</em>
+  <em>The world's first open-source Socratic AI co-pilot with real-time voice and spatial canvas intelligence</em>
 </p>
 
 <p align="center">
@@ -32,138 +32,138 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [🎯 Why Newton?](#-why-newton)
-- [🔍 The Problem We Solve](#-the-problem-we-solve)
-- [🏗️ Architecture](#️-architecture)
-- [🚀 Quick Start](#-quick-start)
-- [✨ Features Deep Dive](#-features-deep-dive)
-- [📁 Project Structure](#-project-structure)
-- [🧪 How the Socratic Engine Works](#-how-the-socratic-engine-works)
-- [🛠️ Tech Stack & Rationale](#️-tech-stack--rationale)
-- [📊 Market Landscape](#-market-landscape)
-- [🗺️ Roadmap](#️-roadmap---tiers)
-- [🎯 God-Level Upgrades](#-god-level-upgrades)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- [Why Newton?](#why-newton)
+- [The Problem We Solve](#the-problem-we-solve)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Features Deep Dive](#features-deep-dive)
+- [Project Structure](#project-structure)
+- [How the Socratic Engine Works](#how-the-socratic-engine-works)
+- [Tech Stack and Rationale](#tech-stack-and-rationale)
+- [Market Landscape](#market-landscape)
+- [Roadmap](#roadmap)
+- [God-Level Upgrades](#god-level-upgrades)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## 🎯 Why Newton?
+## Why Newton?
 
 > **"It does not give answers. It guides students to the 'Aha!' moment."**
 
-Newton is a **venture-grade, open-source AI tutoring platform** that merges **real-time voice interaction** with a **spatial digital canvas**. Built for students who need more than a chatbot — they need a *thinking partner* that sees what they draw, hears what they say, and asks the right Socratic question to unlock understanding.
+Newton is a venture-grade, open-source AI tutoring platform that merges real-time voice interaction with a spatial digital canvas. Built for students who need more than a chatbot -- they need a thinking partner that sees what they draw, hears what they say, and asks the right Socratic question to unlock understanding.
 
-**Unlike every other open-source AI tutor, Newton is not a CLI tool or a chat widget.** It's a complete spatial learning environment:
+**Unlike every other open-source AI tutor, Newton is not a CLI tool or a chat widget.** It is a complete spatial learning environment:
 
 | Capability | What It Does |
 |------------|-------------|
-| 🎙️ **Voice-First** | Browser-native speech recognition & synthesis — 100% free, zero latency |
-| ✍️ **Infinite Canvas** | Draw math, diagrams, or code. The AI *sees* your shapes in real-time |
-| 🧠 **Socratic by Design** | Purpose-built prompt engineering that never hands out answers |
-| 📊 **Teacher Dashboard** | Live heatmaps, real-time intervention alerts, full cognitive replay |
-| 🔄 **Session Replay** | Every canvas interaction recorded via rrweb for breakthrough analysis |
-| 💬 **Chat + Captions** | Full chat sidebar with AI conversation history + animated speech captions |
+| **Voice-First** | Browser-native speech recognition and synthesis -- 100% free, zero latency |
+| **Infinite Canvas** | Draw math, diagrams, or code. The AI sees your shapes in real-time. |
+| **Socratic by Design** | Purpose-built prompt engineering that never hands out answers |
+| **Teacher Dashboard** | Live heatmaps, real-time intervention alerts, full cognitive replay |
+| **Session Replay** | Every canvas interaction recorded via rrweb for breakthrough analysis |
+| **Chat and Captions** | Full chat sidebar with AI conversation history and animated speech captions |
 
 ---
 
-## 🔍 The Problem We Solve
+## The Problem We Solve
 
 ### The AI Tutor Crisis (Stanford Study, June 2026)
 
-A recent Stanford randomized controlled trial across ~350 elementary students found a sobering truth:
+A recent Stanford randomized controlled trial across approximately 350 elementary students found a sobering truth:
 
 > **Giving students access to an AI tutor does not mean they will use it.**
 
 The current generation of AI tutors fails because:
 
-1. **They're chat-only** — No spatial/visual interaction, just text in a box
-2. **They answer too quickly** — Students copy answers instead of learning
-3. **They don't integrate with how students actually work** — Paper, whiteboards, diagrams
-4. **Teachers are blind** — No visibility into who's struggling, with what, and why
+1. **They are chat-only** -- No spatial/visual interaction, just text in a box
+2. **They answer too quickly** -- Students copy answers instead of learning
+3. **They do not integrate with how students actually work** -- Paper, whiteboards, diagrams
+4. **Teachers are blind** -- No visibility into who is struggling, with what, and why
 
-Newton was designed from day one to solve *all four problems* — by combining voice, canvas, Socratic method, and a full teacher observation layer.
+Newton was designed from day one to solve all four problems -- by combining voice, canvas, Socratic method, and a full teacher observation layer.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 > **Open the full interactive diagram:** [`public/newton-architecture.excalidraw`](public/newton-architecture.excalidraw)
-> *(Open with [excalidraw.com](https://excalidraw.com) or VS Code Excalidraw extension)*
+> *(Open with [excalidraw.com](https://excalidraw.com) or the VS Code Excalidraw extension)*
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           CLIENT LAYER (Browser)                             │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │  Next.js 16 (App Router) + React 19 + Tailwind CSS                     ││
-│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  ┌──────────────┐  ││
-│  │  │ Tldraw v5    │  │ rrweb DOM    │  │ ChatSidebar│  │ CaptionsBar  │  ││
-│  │  │ Infinite     │  │ Session      │  │ + Message  │  │ + Animated   │  ││
-│  │  │ Canvas       │  │ Recording    │  │ History    │  │ Speech Text  │  ││
-│  │  └──────────────┘  └──────────────┘  └────────────┘  └──────────────┘  ││
-│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐                     ││
-│  │  │ Web Speech   │  │ VAD Audio    │  │ Recharts   │                     ││
-│  │  │ API (Free)   │  │ Analyzer     │  │ Charts     │                     ││
-│  │  └──────────────┘  └──────────────┘  └────────────┘                     ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────────────────┤
-│                        API LAYER (Next.js Route Handlers)                    │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │  POST /api/chat-audio  ← Voice (VAD→Whisper) + Canvas + Text → Response ││
-│  │  POST /api/chat         ← Text + Canvas Shapes → Socratic Response       ││
-│  │  GET  /api/skills       ← Skill tree with user mastery progress          ││
-│  │  GET  /api/skills/recommendations  ← Next skill recommendation           ││
-│  │  POST /api/skills/update  ← Update user mastery after session            ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────────────────┤
-│                         LLM & AI INFERENCE LAYER                             │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │  ⚡ Groq Llama-3.3-70b (Socratic Engine)                                ││
-│  │  → Canvas-aware reasoning (reads shapes, text, geometry, diagrams)      ││
-│  │  → Struggle detection → intervention logging                            ││
-│  │  → All-subject tutoring (math, science, CS, humanities)                 ││
-│  │                                                                          ││
-│  │  🎙 Groq Whisper (Speech-to-Text)                                        ││
-│  │  🔊 Browser SpeechSynthesis (Text-to-Speech — free, always works)       ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-├─────────────────────────────────────────────────────────────────────────────┤
-│                          DATA LAYER (Supabase)                               │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │  Auth (Google OAuth + Email)  →  user_profiles (RBAC)                   ││
-│  │  session_replays (rrweb events + canvas snapshots)                      ││
-│  │  interventions (live struggle feed with Realtime push)                  ││
-│  │  skills (self-referencing tree, 30+ seeded across 7 subjects)           ││
-│  │  user_skills (per-user mastery 0.00-1.00, attempts, recency)           ││
-│  │  skill_prerequisites (DAG for learning dependencies)                    ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------------------------+
+|                                   CLIENT LAYER (Browser)                                   |
+|  +---------------------------------------------------------------------------------------+ |
+|  |  Next.js 16 (App Router) + React 19 + Tailwind CSS                                   | |
+|  |  +----------------+  +----------------+  +--------------+  +----------------+        | |
+|  |  | Tldraw v5      |  | rrweb DOM      |  | ChatSidebar  |  | CaptionsBar    |        | |
+|  |  | Infinite       |  | Session        |  | + Message    |  | + Animated     |        | |
+|  |  | Canvas         |  | Recording      |  | History      |  | Speech Text    |        | |
+|  |  +----------------+  +----------------+  +--------------+  +----------------+        | |
+|  |  +----------------+  +----------------+  +--------------+                               | |
+|  |  | Web Speech API |  | VAD Audio      |  | Recharts     |                               | |
+|  |  | (Free)         |  | Analyzer       |  | Charts       |                               | |
+|  |  +----------------+  +----------------+  +--------------+                               | |
+|  +---------------------------------------------------------------------------------------+ |
++-------------------------------------------------------------------------------------------+
+|                         API LAYER (Next.js Route Handlers)                                 |
+|  +---------------------------------------------------------------------------------------+ |
+|  |  POST /api/chat-audio  -- Voice (VAD to Whisper) + Canvas + Text to Response          | |
+|  |  POST /api/chat         -- Text + Canvas Shapes to Socratic Response                   | |
+|  |  GET  /api/skills       -- Skill tree with user mastery progress                       | |
+|  |  GET  /api/skills/recommendations  -- Next skill recommendation                        | |
+|  |  POST /api/skills/update  -- Update user mastery after session                         | |
+|  +---------------------------------------------------------------------------------------+ |
++-------------------------------------------------------------------------------------------+
+|                              LLM AND AI INFERENCE LAYER                                    |
+|  +---------------------------------------------------------------------------------------+ |
+|  |  Groq Llama-3.3-70b (Socratic Engine)                                                 | |
+|  |    -> Canvas-aware reasoning (reads shapes, text, geometry, diagrams)                  | |
+|  |    -> Struggle detection, intervention logging                                         | |
+|  |    -> All-subject tutoring (math, science, CS, humanities)                             | |
+|  |                                                                                         | |
+|  |  Groq Whisper (Speech-to-Text)                                                         | |
+|  |  Browser SpeechSynthesis (Text-to-Speech, free, always works)                          | |
+|  +---------------------------------------------------------------------------------------+ |
++-------------------------------------------------------------------------------------------+
+|                                  DATA LAYER (Supabase)                                     |
+|  +---------------------------------------------------------------------------------------+ |
+|  |  Auth (Google OAuth + Email)  ->  user_profiles (RBAC)                                 | |
+|  |  session_replays (rrweb events + canvas snapshots)                                     | |
+|  |  interventions (live struggle feed with Realtime push)                                 | |
+|  |  skills (self-referencing tree, 30+ seeded across 7 subjects)                          | |
+|  |  user_skills (per-user mastery 0.00-1.00, attempts, recency)                          | |
+|  |  skill_prerequisites (DAG for learning dependencies)                                   | |
+|  +---------------------------------------------------------------------------------------+ |
++-------------------------------------------------------------------------------------------+
 ```
 
 ### Architecture Decisions
 
 | Decision | Why |
 |----------|-----|
-| **Browser Web Speech instead of LiveKit** | 100% free, zero latency, no infrastructure — works on Chromebooks |
-| **Groq Llama-3.3-70b** | 800+ tok/sec inference — real-time Socratic dialogue, no waiting |
-| **Tldraw v5 instead of custom canvas** | Battle-tested infinite canvas with rich shape API + JSON serialization |
-| **Next.js API Routes (no separate backend)** | Deploy entire platform to Vercel in one click — monorepo simplicity |
+| **Browser Web Speech instead of LiveKit** | 100% free, zero latency, no infrastructure, works on Chromebooks |
+| **Groq Llama-3.3-70b** | 800+ tok/sec inference for real-time Socratic dialogue |
+| **Tldraw v5 instead of custom canvas** | Battle-tested infinite canvas with rich shape API and JSON serialization |
+| **Next.js API Routes (no separate backend)** | Deploy entire platform to Vercel in one click |
 | **Supabase Realtime** | Live teacher dashboard without WebSocket infrastructure costs |
-| **rrweb for replays** | Full DOM recording without complex video storage — works offline |
+| **rrweb for replays** | Full DOM recording without complex video storage, works offline |
 | **CSS Grid instead of absolute positioning** | No z-index conflicts, no hidden UI elements, responsive by default |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
 - A Groq API key ([Get one free](https://console.groq.com/))
-- (Optional) A Supabase project ([supabase.com](https://supabase.com)) for auth + persistence
+- (Optional) A Supabase project ([supabase.com](https://supabase.com)) for auth and persistence
 
-### 1. Clone & Install
+### 1. Clone and Install
 
 ```bash
 git clone https://github.com/shashank-tomar0/ai-tutor.git
@@ -180,7 +180,7 @@ cp .env.example .env.local
 Edit `.env.local`:
 
 ```env
-# Required — Groq for LLM + Whisper STT
+# Required -- Groq for LLM + Whisper STT
 GROQ_API_KEY=gsk_your_groq_api_key_here
 
 # Required for Supabase Auth + Database + Realtime
@@ -204,29 +204,29 @@ Run `supabase_schema.sql` in your Supabase SQL Editor to create all tables and s
 npm run dev
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** 🚀
+Open **[http://localhost:3000](http://localhost:3000)**.
 
 ### 5. Try the Full Flow
 
 ```
-1. Landing Page  →  Click "START A SESSION" or navigate to /classroom
-2. Login         →  Supabase Auth (Google OAuth)
-3. Role Select   →  Pick "Student" or "Teacher"
-4. Classroom     →  Draw something on the canvas
-5. Type in chat  →  "Solve this equation" or "Teach me React"
-6. AI responds   →  Chat message + writes on canvas + speaks + captions
-7. Dashboard     →  Login as teacher at /dashboard to see interventions + replays
+1. Landing Page  ->  Click "START A SESSION" or navigate to /classroom
+2. Login         ->  Supabase Auth (Google OAuth)
+3. Role Select   ->  Pick "Student" or "Teacher"
+4. Classroom     ->  Draw something on the canvas
+5. Type in chat  ->  "Solve this equation" or "Teach me React"
+6. AI responds   ->  Chat message + writes on canvas + speaks + captions
+7. Dashboard     ->  Login as teacher at /dashboard to see interventions + replays
 ```
 
 ---
 
-## ✨ Features Deep Dive
+## Features Deep Dive
 
-### 1. 🎨 The Sensory Canvas (`/classroom`)
+### 1. The Sensory Canvas (`/classroom`)
 
 An infinite digital whiteboard where students draw, write, and explore with Newton watching.
 
-**What Newton "sees" on the canvas:**
+**What Newton sees on the canvas:**
 ```
 Canvas Analysis:
 - Shapes: 5 total (2 text, 1 rectangle, 1 arrow, 1 line)
@@ -238,11 +238,11 @@ Canvas Analysis:
 
 **Key features:**
 - Tldraw infinite canvas with full drawing tools
-- Canvas Parser engine — detects shapes, geometry, math equations, coordinate planes, flowcharts
+- Canvas Parser engine detects shapes, geometry, math equations, coordinate planes, flowcharts
 - AI writes explanations directly on the canvas as text shapes
-- rrweb session recording — every interaction captured for replay
+- rrweb session recording captures every interaction for replay
 
-### 2. 💬 AI Chat + Captions (`ChatSidebar` + `CaptionsBar`)
+### 2. AI Chat and Captions (`ChatSidebar` + `CaptionsBar`)
 
 A full conversational interface built into the classroom:
 
@@ -252,35 +252,35 @@ A full conversational interface built into the classroom:
 | **CaptionsBar** (overlay at canvas bottom) | Animated word-by-word captions synced with TTS audio |
 
 **Message types:**
-- **User messages** — Right-aligned, black bg, white text, with timestamp
-- **AI messages** — Left-aligned, brain icon, "Newton" label, border-2 brutalist design
-- **Typing indicator** — Animated dots during AI processing
+- **User messages** -- Right-aligned, black background, white text, with timestamp
+- **AI messages** -- Left-aligned, brain icon, "Newton" label, brutalist border design
+- **Typing indicator** -- Animated dots during AI processing
 
 **Voice modes:**
 | Mode | Backend | Quality | Cost |
 |------|---------|---------|------|
-| 🔊 Human | Browser SpeechSynthesis | OS-dependent | Free |
-| 🔊 Native | Browser SpeechSynthesis | OS-dependent | Free |
-| 🔇 Mute | Silent | — | Free |
+| Human | Browser SpeechSynthesis | OS-dependent | Free |
+| Native | Browser SpeechSynthesis | OS-dependent | Free |
+| Mute | Silent | -- | Free |
 
-### 3. 📊 Teacher Cognitive Dashboard (`/dashboard`)
+### 3. Teacher Cognitive Dashboard (`/dashboard`)
 
 An RBAC-protected control center for educators to monitor classroom cognitive health in real-time.
 
 | Panel | Function | Technology |
 |-------|----------|------------|
 | **Concept Mastery Heatmap** | Bar chart showing which concepts students struggle with most | Recharts |
-| **Live Interventions Feed** | Real-time stream of struggling students + Socratic prompt used | Supabase Realtime |
+| **Live Interventions Feed** | Real-time stream of struggling students and the Socratic prompt used | Supabase Realtime |
 | **Cognitive Replays** | Full interactive canvas playback with teacher feedback form | rrweb-player |
 
 **RBAC Flow:**
 ```
-Login → Supabase Auth → user_profiles.role check
-  → "student" → /classroom
-  → "teacher" → /dashboard (with localStorage fallback)
+Login -> Supabase Auth -> user_profiles.role check
+  -> "student" -> /classroom
+  -> "teacher" -> /dashboard (with localStorage fallback)
 ```
 
-### 4. 🔄 Aha! Replays (`/replay/[id]`)
+### 4. Aha! Replays (`/replay/[id]`)
 
 Every time Newton detects a cognitive breakthrough, the entire session (DOM mutations via rrweb) is serialized and stored.
 
@@ -289,81 +289,76 @@ Every time Newton detects a cognitive breakthrough, the entire session (DOM muta
 2. rrweb events compressed and saved to Supabase (or local JSON fallback)
 3. Teacher opens replay from dashboard
 4. Full canvas reconstruction with playback controls
-5. Teacher adds evaluation notes → saved to Supabase (or localStorage fallback)
+5. Teacher adds evaluation notes, saved to Supabase (or localStorage fallback)
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
-├── app/
-│   ├── page.tsx                 # Landing page (brutalist design)
-│   ├── layout.tsx               # Root layout with fonts
-│   ├── globals.css              # Tailwind + global styles
-│   │
-│   ├── classroom/
-│   │   └── page.tsx             # Main app — Canvas + Chat + Voice + Captions
-│   │
-│   ├── dashboard/
-│   │   └── page.tsx             # Teacher analytics (heatmap, interventions, replays)
-│   │
-│   ├── login/
-│   │   ├── page.tsx             # Supabase Auth (Google OAuth + Email)
-│   │   └── role-select/
-│   │       └── page.tsx         # Student vs Teacher role picker
-│   │
-│   ├── replay/
-│   │   ├── page.tsx             # Local JSON file upload viewer
-│   │   └── [id]/
-│   │       └── page.tsx         # Cloud replay + teacher feedback
-│   │
-│   └── api/
-│       ├── chat/route.ts        # Text + canvas → Groq Socratic engine
-│       ├── chat-audio/route.ts  # Voice (Whisper STT) + canvas → Groq
-│       ├── tts/route.ts         # TTS endpoint (client-side SpeechSynthesis)
-│       ├── skills/
-│       │   ├── route.ts         # GET skill tree with user progress
-│       │   ├── recommendations/route.ts  # Smart next-skill algorithm
-│       │   └── update/route.ts  # POST update mastery after session
-│       └── dashboard/
-│           ├── struggling/route.ts  # Interventions endpoint
-│           └── heatmap/route.ts     # Concept mastery endpoint
-│
-├── components/
-│   ├── ChatSidebar.tsx          # Full chat panel (messages + input + controls)
-│   └── CaptionsBar.tsx          # Animated speech captions overlay
-│
-└── utils/
-    ├── supabase.ts              # Supabase client initialization
-    ├── skill-engine.ts          # Recommendation algorithm + mastery helpers
-    └── canvas-parser.ts         # Deep canvas analysis (shapes, geometry, math)
+  app/
+    page.tsx                 # Landing page (brutalist design)
+    layout.tsx               # Root layout with fonts
+    globals.css              # Tailwind + global styles
+
+    classroom/
+      page.tsx               # Main app: Canvas + Chat + Voice + Captions
+
+    dashboard/
+      page.tsx               # Teacher analytics (heatmap, interventions, replays)
+
+    login/
+      page.tsx               # Supabase Auth (Google OAuth + Email)
+      role-select/
+        page.tsx             # Student vs Teacher role picker
+
+    replay/
+      page.tsx               # Local JSON file upload viewer
+      [id]/
+        page.tsx             # Cloud replay + teacher feedback
+
+    api/
+      chat/route.ts          # Text + canvas to Groq Socratic engine
+      chat-audio/route.ts    # Voice (Whisper STT) + canvas to Groq
+      tts/route.ts           # TTS endpoint (client-side SpeechSynthesis)
+      skills/
+        route.ts             # GET skill tree with user progress
+        recommendations/route.ts  # Smart next-skill algorithm
+        update/route.ts      # POST update mastery after session
+      dashboard/
+        struggling/route.ts  # Interventions endpoint
+        heatmap/route.ts     # Concept mastery endpoint
+
+  components/
+    ChatSidebar.tsx           # Full chat panel (messages + input + controls)
+    CaptionsBar.tsx           # Animated speech captions overlay
+
+  utils/
+    supabase.ts              # Supabase client initialization
+    skill-engine.ts          # Recommendation algorithm + mastery helpers
+    canvas-parser.ts         # Deep canvas analysis (shapes, geometry, math)
 ```
 
 ---
 
-## 🧪 How the Socratic Engine Works
+## How the Socratic Engine Works
 
 ### The Pipeline
 
 ```
-Student types/speaks → Canvas JSON serialized → Shape analysis via Canvas Parser
-  → Groq Llama-3.3-70b with JSON schema enforcement
-  → { is_struggling, concept, response_text }
-  → AI response: Chat message + Canvas text shapes + TTS voice + Captions
-  → If struggling → Intervention logged to Supabase Realtime → Teacher dashboard
+Student types/speaks -> Canvas JSON serialized -> Shape analysis via Canvas Parser
+  -> Groq Llama-3.3-70b with JSON schema enforcement
+  -> { is_struggling, concept, response_text }
+  -> AI response: Chat message + Canvas text shapes + TTS voice + Captions
+  -> If struggling -> Intervention logged to Supabase Realtime -> Teacher dashboard
 ```
 
 ### Prompt Architecture
 
 Newton's system prompt intelligently adapts to whatever the student asks:
 
-> *"RULES:
-> 1. The student picks the topic — follow their lead. If they ask about React, teach React.
-> 2. Read EVERYTHING on the canvas: text, shapes, diagrams, freehand sketches.
-> 3. EXPLAIN clearly. Use analogies. Break it down.
-> 4. Only Socratic-question when genuinely stuck.
-> 5. Be warm, conversational, simple."*
+> *"The student picks the topic -- follow their lead. If they ask about React, teach React. Read everything on the canvas: text, shapes, diagrams, freehand sketches. Explain clearly. Use analogies. Break it down. Only use Socratic questioning when genuinely stuck. Be warm, conversational, simple."*
 
 ### Canvas Parser Intelligence
 
@@ -371,7 +366,7 @@ The `canvas-parser.ts` engine detects:
 
 | Shape | Detection |
 |-------|-----------|
-| Text/sticky notes | Content extraction |
+| Text or sticky notes | Content extraction |
 | Geometric shapes | Type, dimensions, position |
 | Arrows | Start/end points, connections |
 | Lines | Straight, curved, horizontal/vertical, wavy |
@@ -393,7 +388,7 @@ Newton responds: "I see you've labeled two sides of your right triangle.
 
 ---
 
-## 🛠️ Tech Stack & Rationale
+## Tech Stack and Rationale
 
 | Technology | Purpose | Why This One |
 |-----------|---------|-------------|
@@ -408,61 +403,60 @@ Newton responds: "I see you've labeled two sides of your right triangle.
 | **Canvas Parser** | Shape analysis | Custom engine for geometry, math, diagram detection |
 | **Recharts** | Charts | Dashboard concept mastery heatmaps |
 | **Framer Motion** | Animations | Production-ready animation library |
-| **Excalidraw** | Diagrams | Hand-drawn style architecture renderings |
 
 ---
 
-## 📊 Market Landscape
+## Market Landscape
 
 ### Open-Source AI Tutor Comparison
 
 | Project | Canvas | Voice | Socratic | Replays | Dashboard | Open Source |
 |---------|--------|-------|----------|---------|-----------|-------------|
-| **Newton** | ✅ Tldraw v5 | ✅ VAD+Whisper | ✅ Enforced | ✅ rrweb | ✅ Realtime | ✅ MIT |
-| Khanmigo | ❌ | ❌ | Partial | ❌ | ❌ | ❌ |
-| Socra | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ |
-| MathGPT.ai | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
-| Socratic (Google) | ❌ | ✅ Text | ❌ | ❌ | ❌ | ❌ |
-| DeepTutor | ❌ | ❌ | ✅ Academic | ❌ | ❌ | ✅ |
+| **Newton** | Yes - Tldraw v5 | Yes - VAD+Whisper | Yes - Enforced | Yes - rrweb | Yes - Realtime | Yes - MIT |
+| Khanmigo | No | No | Partial | No | No | No |
+| Socra | No | No | Yes | No | No | No |
+| MathGPT.ai | No | No | No | No | Yes | No |
+| Socratic (Google) | No | Yes - Text only | No | No | No | No |
+| DeepTutor | No | No | Yes - Academic | No | No | Yes |
 
 ### Competitive Edge
 
-> **Newton is the only open-source AI tutor that combines an infinite whiteboard, real-time voice interaction, Socratic methodology, teacher analytics dashboard, and full session replay — all deployable to Vercel in one click.**
+> **Newton is the only open-source AI tutor that combines an infinite whiteboard, real-time voice interaction, Socratic methodology, teacher analytics dashboard, and full session replay -- all deployable to Vercel in one click.**
 
 ---
 
-## 🗺️ Roadmap — Tiers
+## Roadmap
 
-### Tier 0: v1.0 MVP ✅ (Shipped)
+### Tier 0: v1.0 MVP (Shipped)
 
 | Feature | Status |
 |---------|--------|
-| Socratic Engine with canvas context | ✅ |
-| Tldraw v5 infinite canvas | ✅ |
-| Voice VAD + Groq Whisper STT | ✅ |
-| Browser SpeechSynthesis (free TTS) | ✅ |
-| ChatSidebar + CaptionsBar | ✅ |
-| AI writes explanations to canvas | ✅ |
-| Teacher Dashboard (heatmap + interventions + replays) | ✅ |
-| rrweb session replay + teacher feedback | ✅ |
-| Supabase Auth + RBAC | ✅ |
-| Adaptive skill tree (30+ skills, prerequisites, mastery) | ✅ |
-| Canvas Parser (shape/geometry/math detection) | ✅ |
-| Excalidraw architecture diagram | ✅ |
-| Comprehensive PRD | ✅ |
+| Socratic Engine with canvas context | Done |
+| Tldraw v5 infinite canvas | Done |
+| Voice VAD + Groq Whisper STT | Done |
+| Browser SpeechSynthesis (free TTS) | Done |
+| ChatSidebar + CaptionsBar | Done |
+| AI writes explanations to canvas | Done |
+| Teacher Dashboard (heatmap + interventions + replays) | Done |
+| rrweb session replay + teacher feedback | Done |
+| Supabase Auth + RBAC | Done |
+| Adaptive skill tree (30+ skills, prerequisites, mastery) | Done |
+| Canvas Parser (shape/geometry/math detection) | Done |
+| Excalidraw architecture diagram | Done |
+| Comprehensive PRD | Done |
 
-### Tier 1: Next — High Impact 🔄
+### Tier 1: Next -- High Impact
 
 | Feature | Effort | Impact |
 |---------|--------|--------|
-| Connect real DB to dashboard APIs | 1 day | 🔴 High |
-| Student Progress Dashboard (streaks, timeline, badges) | 3 days | 🔴 High |
-| Session Summary Modal on end | 1 day | 🟡 Medium |
-| Fix skill context injection in prompts | 0.5 day | 🔴 High |
-| Real user names in interventions | 0.5 day | 🟡 Medium |
-| Multi-subject skill trees (Physics, Chem, Bio, CS) | 1 week | 🟡 Medium |
+| Connect real DB to dashboard APIs | 1 day | High |
+| Student Progress Dashboard (streaks, timeline, badges) | 3 days | High |
+| Session Summary Modal on end | 1 day | Medium |
+| Fix skill context injection in prompts | 0.5 day | High |
+| Real user names in interventions | 0.5 day | Medium |
+| Multi-subject skill trees (Physics, Chem, Bio, CS) | 1 week | Medium |
 
-### Tier 2: Growth 🟡
+### Tier 2: Growth
 
 | Feature | Effort |
 |---------|--------|
@@ -472,7 +466,7 @@ Newton responds: "I see you've labeled two sides of your right triangle.
 | Parent portal (weekly digest) | 1 week |
 | Curriculum alignment (Common Core, CBSE, GCSE) | 1 week |
 
-### Tier 3: Scale 🚀
+### Tier 3: Scale
 
 | Feature | Effort |
 |---------|--------|
@@ -484,54 +478,54 @@ Newton responds: "I see you've labeled two sides of your right triangle.
 
 ---
 
-## 🎯 God-Level Upgrades
+## God-Level Upgrades
 
 These architectural upgrades represent the next evolutionary leap for Newton:
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                    NEWTON GOD-LEVEL ARCHITECTURE                      │
-├──────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  1. 👁️ MULTIMODAL CANVAS VISION ENGINE                               │
-│     • Send high-res Canvas PNG snapshot + Vector JSON to Gemini 2.0  │
-│     • Understands hand-drawn diagrams, handwritten math, geometry    │
-│                                                                      │
-│  2. ⚡ ULTRA-LOW LATENCY VOICE PIPELINE (<600ms)                     │
-│     • Streaming WebSocket Audio Pipeline (Cartesia / Deepgram)       │
-│     • Live audio waveform visualizer + interrupt handling            │
-│                                                                      │
-│  3. 🎨 INTERACTIVE AI CANVAS GENERATOR                               │
-│     • AI draws geometry, plots graphs, highlights mistakes in RED    │
-│     • Response format emits canvas actions: draw_grid, plot_line     │
-│                                                                      │
-│  4. 🎙️ AUDIO-SYNCHRONIZED AHA! REPLAYS                              │
-│     • Record WebRTC audio synced frame-by-frame with rrweb           │
-│     • Teachers hear student's voice + hesitation at exact moment     │
-│                                                                      │
-│  5. 🌐 MULTIPLAYER SOCRATIC CLASSROOM                                │
-│     • Tldraw Collaborative Sync (Yjs + WebSockets)                   │
-│     • Teacher live-spectates 30 student canvases simultaneously      │
-│                                                                      │
-│  6. 🏆 GAMIFIED 3D KNOWLEDGE GRAPH                                   │
-│     • 3D Interactive Skill Constellation (Three.js / React Flow)     │
-│     • Glowing mastery nodes with dependency particle beams           │
-│                                                                      │
-└──────────────────────────────────────────────────────────────────────┘
++--------------------------------------------------------------------+
+|                    NEWTON GOD-LEVEL ARCHITECTURE                     |
++--------------------------------------------------------------------+
+|                                                                      |
+|  1. MULTIMODAL CANVAS VISION ENGINE                                  |
+|     - Send high-res Canvas PNG snapshot + Vector JSON to Gemini 2.0 |
+|     - Understands hand-drawn diagrams, handwritten math, geometry    |
+|                                                                      |
+|  2. ULTRA-LOW LATENCY VOICE PIPELINE (<600ms)                       |
+|     - Streaming WebSocket Audio Pipeline (Cartesia / Deepgram)       |
+|     - Live audio waveform visualizer and interrupt handling          |
+|                                                                      |
+|  3. INTERACTIVE AI CANVAS GENERATOR                                  |
+|     - AI draws geometry, plots graphs, highlights mistakes in red    |
+|     - Response format emits canvas actions: draw_grid, plot_line     |
+|                                                                      |
+|  4. AUDIO-SYNCHRONIZED REPLAYS                                       |
+|     - Record WebRTC audio synced frame-by-frame with rrweb           |
+|     - Teachers hear student's voice and hesitation at exact moment   |
+|                                                                      |
+|  5. MULTIPLAYER SOCRATIC CLASSROOM                                   |
+|     - Tldraw Collaborative Sync (Yjs + WebSockets)                   |
+|     - Teacher live-spectates 30 student canvases simultaneously      |
+|                                                                      |
+|  6. GAMIFIED 3D KNOWLEDGE GRAPH                                      |
+|     - 3D Interactive Skill Constellation (Three.js / React Flow)     |
+|     - Glowing mastery nodes with dependency particle beams           |
+|                                                                      |
++--------------------------------------------------------------------+
 ```
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We believe the future of education is open source. Contributions of all kinds are welcome:
 
 | Type | How |
 |------|-----|
-| 🐛 **Bug report** | [Open an issue](https://github.com/shashank-tomar0/ai-tutor/issues) |
-| 💡 **Feature idea** | Check the PRD — then start a discussion |
-| 🔧 **Code** | Pick anything from Tier 1, 2, or God-Level above |
-| 📚 **Documentation** | Better docs, tutorials, examples always appreciated |
+| **Bug report** | [Open an issue](https://github.com/shashank-tomar0/ai-tutor/issues) |
+| **Feature idea** | Check the PRD, then start a discussion |
+| **Code** | Pick anything from Tier 1, 2, or God-Level above |
+| **Documentation** | Better docs, tutorials, examples always appreciated |
 
 ### Development Setup
 
@@ -543,17 +537,17 @@ npm run lint      # Code quality
 
 ---
 
-## 📄 License
+## License
 
-**MIT** — Because education should be accessible to everyone.
+**MIT** -- Because education should be accessible to everyone.
 
 ---
 
 <p align="center">
-  <strong>Built with ❤️ for the future of learning.</strong><br>
-  <em>Newton doesn't give answers. It creates thinkers.</em>
+  <strong>Built for the future of learning.</strong><br>
+  <em>Newton does not give answers. It creates thinkers.</em>
 </p>
 
 <p align="center">
-  <a href="#-why-newton">↑ Back to top</a>
+  <a href="#why-newton">Back to top</a>
 </p>

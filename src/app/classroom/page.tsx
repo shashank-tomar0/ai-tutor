@@ -447,33 +447,3 @@ export default function CanvasPage() {
     </div>
   );
 }
-
-        {/* Tldraw Canvas */}
-        <div className="flex-1 relative">
-          <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" />
-
-          {/* Captions Overlay */}
-          <CaptionsBar
-            text={captionsText}
-            isVisible={captionsVisible}
-            isTyping={captionsTyping}
-            voiceType={voiceType}
-          />
-        </div>
-      </div>
-
-      {/* ============ RIGHT: Chat Sidebar ============ */}
-      <div className="max-h-screen">
-        <ChatSidebar
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isProcessing={isConnecting}
-          isSessionActive={isSessionActive}
-          onToggleSession={toggleSession}
-          voiceType={voiceType}
-          onVoiceTypeChange={setVoiceType}
-        />
-      </div>
-    </div>
-  );
-}
