@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Send,
   Mic,
@@ -26,6 +27,7 @@ export interface ChatMessage {
 export interface ChatSidebarProps {
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
+  onSendAudio?: (blob: Blob) => void;   // NEW: parent handles audio blob -> AI
   isProcessing: boolean;
   isSessionActive: boolean;
   onToggleSession: () => void;
@@ -52,6 +54,7 @@ const formatTime = (ts: number): string => {
 export default function ChatSidebar({
   messages,
   onSendMessage,
+  onSendAudio,
   isProcessing,
   isSessionActive,
   onToggleSession,
@@ -64,10 +67,24 @@ export default function ChatSidebar({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
 
+  // Mic button state
+  const [isRecording, setIsRecording] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const [micLevel, setMicLevel] = useState(0); // 0-100 for animation
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isProcessing]);
 
+  // ── Text submit ──────────────────────────────────────────────────────────
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = inputText.trim();
@@ -75,6 +92,109 @@ export default function ChatSidebar({
     onSendMessage(trimmed);
     setInputText('');
   };
+
+  // ── Mic level animation ──────────────────────────────────────────────────
+  const startLevelMonitor = useCallback((analyser: AnalyserNode) => {
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a, b) => a + b, 0) / data.length;
+      setMicLevel(Math.min(100, avg * 2));
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+    animFrameRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  const stopLevelMonitor = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    setMicLevel(0);
+  }, []);
+
+  // ── Start recording ──────────────────────────────────────────────────────
+  const startRecording = useCallback(async () => {
+    setMicError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Set up analyser for visual feedback
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioCtxRef.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      analyserRef.current = analyser;
+      startLevelMonitor(analyser);
+
+      // Set up recorder
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (ev) => {
+        if (ev.data.size > 0) audioChunksRef.current.push(ev.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        // Stop tracks
+        stream.getTracks().forEach(t => t.stop());
+        stopLevelMonitor();
+        if (audioCtxRef.current) { audioCtxRef.current.close(); audioCtxRef.current = null; }
+
+        if (blob.size > 800 && onSendAudio) {
+          onSendAudio(blob);
+        }
+        setIsRecording(false);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+    } catch (err: any) {
+      setMicError('Microphone blocked. Check browser permissions.');
+      console.warn('Mic access error:', err);
+      setIsRecording(false);
+    }
+  }, [onSendAudio, startLevelMonitor, stopLevelMonitor]);
+
+  // ── Stop recording ───────────────────────────────────────────────────────
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  // ── Mic button press/release handlers ────────────────────────────────────
+  const handleMicDown = useCallback(() => {
+    if (isProcessing) return;
+    startRecording();
+  }, [isProcessing, startRecording]);
+
+  const handleMicUp = useCallback(() => {
+    if (isRecording) stopRecording();
+  }, [isRecording, stopRecording]);
+
+  // Keyboard: hold Space to speak (when input not focused)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && e.target === document.body && !isRecording && !isProcessing) {
+        e.preventDefault();
+        startRecording();
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && isRecording) {
+        stopRecording();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [isRecording, isProcessing, startRecording, stopRecording]);
 
   // ============================================================================
   // RENDER
@@ -131,7 +251,7 @@ export default function ChatSidebar({
                 <button
                   key={type}
                   onClick={() => onVoiceTypeChange(type)}
-                  title={type}
+                  title={type === 'human' ? 'Natural voice' : type === 'system' ? 'System voice' : 'Mute'}
                   className={`w-7 h-7 border border-black flex items-center justify-center transition-all text-[8px] font-bold ${
                     isActive
                       ? type === 'mute' ? 'bg-red-500 text-white border-red-500' : 'bg-black text-white'
@@ -145,10 +265,10 @@ export default function ChatSidebar({
             {onTestVoice && (
               <button
                 onClick={onTestVoice}
-                title="Test sound output"
+                title="Test sound output — click to unlock audio if silent"
                 className="px-2 py-1 text-[7px] font-black uppercase tracking-widest border border-black/30 bg-gray-50 hover:bg-black hover:text-white transition-all ml-1"
               >
-                🔊 TEST VOICE
+                🔊 TEST
               </button>
             )}
           </div>
@@ -188,6 +308,29 @@ export default function ChatSidebar({
             <span className="text-[8px] font-black uppercase tracking-[0.25em]">SESSION ACTIVE — LISTENING</span>
           </div>
         )}
+
+        {/* Recording indicator */}
+        {isRecording && (
+          <div className="bg-red-500 text-white px-4 py-1.5 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+            <span className="text-[8px] font-black uppercase tracking-[0.25em] flex-1">RECORDING — RELEASE TO SEND</span>
+            {/* Mic level bar */}
+            <div className="w-16 h-1.5 bg-red-300 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white rounded-full transition-all duration-75"
+                style={{ width: `${micLevel}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Mic error */}
+        {micError && (
+          <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-1.5 flex items-center justify-between">
+            <span className="text-[8px] font-bold text-yellow-700">{micError}</span>
+            <button onClick={() => setMicError(null)} className="text-yellow-500 text-xs">✕</button>
+          </div>
+        )}
       </div>
 
       {/* ========================== MESSAGES AREA =========================== */}
@@ -198,8 +341,11 @@ export default function ChatSidebar({
             <div className="w-16 h-16 border-4 border-black/10 rounded-full flex items-center justify-center mb-6">
               <Brain size={28} className="text-black/15 stroke-[1]" />
             </div>
-            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-black/20 leading-relaxed">
-              START A SESSION<br/>OR TYPE A MESSAGE<br/>TO BEGIN
+            <div className="text-[10px] font-black uppercase tracking-[0.25em] text-black/20 leading-relaxed mb-4">
+              TYPE A MESSAGE<br/>OR HOLD 🎙️ MIC<br/>TO SPEAK
+            </div>
+            <div className="text-[8px] font-bold text-black/15 uppercase tracking-widest">
+              TIP: Hold SPACE key to speak
             </div>
           </div>
         ) : (
@@ -283,21 +429,53 @@ export default function ChatSidebar({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder={isSessionActive ? "Type or speak..." : "Type a message..."}
-            disabled={isProcessing}
-            className="flex-1 px-4 py-4 text-[11px] font-bold uppercase tracking-tight border-r-2 border-black bg-white focus:outline-none placeholder-black/20 disabled:opacity-40"
+            placeholder={isRecording ? '🔴 Recording...' : 'Type or hold 🎙 to speak...'}
+            disabled={isProcessing || isRecording}
+            className="flex-1 px-4 py-4 text-[11px] font-bold uppercase tracking-tight border-r-2 border-black bg-white focus:outline-none placeholder-black/20 disabled:opacity-60"
           />
+
+          {/* MIC BUTTON — hold to record */}
+          <button
+            type="button"
+            onMouseDown={handleMicDown}
+            onMouseUp={handleMicUp}
+            onMouseLeave={handleMicUp}
+            onTouchStart={(e) => { e.preventDefault(); handleMicDown(); }}
+            onTouchEnd={(e) => { e.preventDefault(); handleMicUp(); }}
+            disabled={isProcessing}
+            title="Hold to speak — release to send"
+            className={`px-4 flex items-center justify-center border-r-2 border-black transition-all disabled:opacity-30 select-none ${
+              isRecording
+                ? 'bg-red-500 text-white'
+                : 'bg-white text-black hover:bg-black hover:text-white'
+            }`}
+            style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
+          >
+            {isRecording ? (
+              <span className="relative flex h-4 w-4 items-center justify-center">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                <Mic size={14} />
+              </span>
+            ) : (
+              <Mic size={14} />
+            )}
+          </button>
+
+          {/* SEND BUTTON */}
           <button
             type="submit"
-            disabled={isProcessing || !inputText.trim()}
+            disabled={isProcessing || !inputText.trim() || isRecording}
             className="px-5 bg-black text-white hover:bg-white hover:text-black border-l-0 border-2 border-black transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center active:bg-black active:text-white"
           >
             <Send size={14} />
           </button>
         </form>
-        <div className="px-4 py-1.5 border-t border-black/10">
+        <div className="px-4 py-1.5 border-t border-black/10 flex items-center justify-between">
           <span className="text-[7px] font-bold uppercase tracking-[0.2em] text-black/25">
             NEWTON SOCRATIC ENGINE · LLAMA 3.3 70B
+          </span>
+          <span className="text-[7px] font-bold uppercase tracking-[0.15em] text-black/20">
+            HOLD 🎙 OR SPACE TO SPEAK
           </span>
         </div>
       </div>

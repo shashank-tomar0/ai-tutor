@@ -445,6 +445,49 @@ export default function CanvasPage() {
     sendToAI(text);
   }, [sendToAI]);
 
+  // Handle audio blob from ChatSidebar mic button
+  const handleSendAudio = useCallback(async (blob: Blob) => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    setIsConnecting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', blob, 'audio.webm');
+      const shapes = editor ? editor.getCurrentPageShapes() : [];
+      formData.append('shapes', JSON.stringify(shapes));
+      if (shapes && shapes.length > 0) {
+        const imageBase64 = await captureCanvasImage();
+        if (imageBase64) formData.append('image', imageBase64);
+      }
+      if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
+      if (user?.id) formData.append('user_id', user.id);
+      if (user?.email) formData.append('student_name', user.email.split('@')[0]);
+
+      const res = await fetch('/api/chat-audio', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.transcript) addMessage('user', data.transcript);
+
+      if (data.type === 'ai_response') {
+        const aiText = data.text || "I heard you! Tell me more.";
+        addMessage('ai', aiText);
+        if (data.canvas_content && Array.isArray(data.canvas_content) && data.canvas_content.length > 0) {
+          writeToCanvas(data.canvas_content);
+        }
+        speakText(aiText);
+      } else {
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+      }
+    } catch (err) {
+      console.error('Audio AI request failed:', err);
+      addMessage('ai', "Sorry, I didn't catch that. Could you try again?");
+      isProcessingRef.current = false;
+      setIsConnecting(false);
+    }
+  }, [editor, selectedSkill, user, addMessage, writeToCanvas, speakText]);
+
   // ==========================================================================
   // VOICE PIPELINE (VAD)
   // ==========================================================================
@@ -697,6 +740,7 @@ export default function CanvasPage() {
           <ChatSidebar
             messages={messages}
             onSendMessage={handleSendMessage}
+            onSendAudio={handleSendAudio}
             isProcessing={isConnecting}
             isSessionActive={isSessionActive}
             onToggleSession={toggleSession}
