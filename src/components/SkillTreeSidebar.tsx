@@ -61,7 +61,7 @@ export default function SkillTreeSidebar({
       setExpandedNodes(initialExpanded);
     } catch (err) {
       console.error('Error loading skill tree data:', err);
-    } fontally {
+    } finally {
       setLoading(false);
     }
   }, [userId]);
