@@ -37,16 +37,20 @@ export async function POST(req: Request) {
              - In "response_text": Explain the core idea in 1-2 friendly sentences with a real-world analogy, then end with ONE light check question.
           2. WHEN SOLVING AN EXERCISE OR PROBLEM:
              - If they make a mistake or get stuck, ask a guiding Socratic question to help them find their error instead of giving away the final solution.
-          3. CANVAS CONTENT FORMAT:
-             - "canvas_content" can be strings OR visual shape objects:
+          3. CANVAS CONTENT FORMAT (Rich Visual Diagram Shapes):
+             - Populate "canvas_content" with a structured array of rich visual shapes:
                [
-                 { "type": "box", "text": "CONCEPT: Variable = Memory Box", "color": "blue" },
-                 { "type": "box", "text": "Syntax: int age = 20;", "color": "green" },
-                 { "type": "box", "text": "Memory Address 0x7F -> age: 20", "color": "black" },
-                 { "type": "note", "text": "💡 TIP: 'int' stores whole numbers without decimals!" }
+                 { "type": "box", "text": "CONCEPT: Variable = Memory Box", "color": "violet", "fill": "semi" },
+                 { "type": "circle", "text": "Variable: age", "color": "blue", "fill": "solid" },
+                 { "type": "arrow", "fromIndex": 1, "toIndex": 3, "label": "stores value in" },
+                 { "type": "cloud", "text": "RAM Address 0x7F\nValue: 20", "color": "black", "fill": "pattern" },
+                 { "type": "diamond", "text": "Is age >= 18?", "color": "orange", "fill": "semi" },
+                 { "type": "note", "text": "💡 TIP: 'int' stores 32-bit integers in RAM!" }
                ]
-             - Or plain string lines: ["Step 1: Identify x", "Step 2: Solve -> x = 5"]
-             - NEVER leave "canvas_content" null when the student asks to teach, explain, or draw a concept!
+             - Available shape types: "box" (rectangle), "circle" (ellipse), "diamond" (decision), "cloud" (memory/thought), "star" (takeaway badge), "note" (yellow tip), "arrow" (connector between indices).
+             - Available colors: "blue", "violet", "green", "black", "orange", "red", "yellow".
+             - Available fills: "semi", "solid", "pattern", "none".
+             - NEVER leave "canvas_content" null when asked to teach, explain, or draw a concept!
 
           Respond ONLY in this exact JSON format:
           {

@@ -165,24 +165,134 @@ export default function CanvasPage() {
       }
 
       const shapesToCreate: any[] = [];
+      const createdShapePos: { x: number; y: number; w: number; h: number }[] = [];
 
       content.forEach((item: any, i: number) => {
         const itemObj = typeof item === 'string' ? { type: 'box', text: item } : item;
         const rawText = itemObj?.text || String(item);
-        const itemType = itemObj?.type || 'box';
+        const itemType = (itemObj?.type || 'box').toLowerCase();
         const color = itemObj?.color || (i === 0 ? 'blue' : 'black');
+        const fill = itemObj?.fill || (i === 0 ? 'semi' : 'none');
+        const font = itemObj?.font || (itemType === 'note' ? 'draw' : 'mono');
 
         // Split text by lines to accurately compute required box dimensions without overlapping
         const lines = rawText.split('\n');
         const maxLineLen = Math.max(...lines.map((l: string) => l.length), 10);
-
-        // Width: scaled to longest line length, min 280px, max 540px
         const w = Math.min(Math.max(maxLineLen * 11, 280), 540);
-
-        // Height: line count * 36px + 36px padding to ensure text never overflows
         const h = Math.max(lines.length * 36 + 36, 72);
 
-        if (itemType === 'note' || itemType === 'sticky') {
+        if (itemType === 'arrow') {
+          // Connecting Vector Arrow between shapes
+          const fromIdx = itemObj?.fromIndex ?? Math.max(0, i - 1);
+          const toIdx = itemObj?.toIndex ?? i + 1;
+          const fromPos = createdShapePos[fromIdx] || { x: startX + 100, y: currentY - 50, w: 200, h: 60 };
+          const toPos = createdShapePos[toIdx] || { x: startX + 100, y: currentY + 40, w: 200, h: 60 };
+
+          const startPtX = fromPos.x + fromPos.w / 2;
+          const startPtY = fromPos.y + fromPos.h;
+          const endPtX = toPos.x + toPos.w / 2;
+          const endPtY = toPos.y;
+
+          shapesToCreate.push({
+            type: 'arrow',
+            x: startPtX,
+            y: startPtY,
+            props: {
+              start: { x: 0, y: 0 },
+              end: { x: endPtX - startPtX, y: Math.max(30, endPtY - startPtY) },
+              color: color === 'black' ? 'violet' : color,
+              size: 'm',
+              arrowheadEnd: 'arrow',
+              richText: itemObj?.label ? toRichText(itemObj.label) : undefined,
+            },
+          });
+          currentY += 40;
+          createdShapePos.push({ x: startPtX, y: startPtY, w: 0, h: 40 });
+        } else if (itemType === 'circle' || itemType === 'ellipse') {
+          // Process Node / State Circle
+          const circleW = Math.max(w, 200);
+          const circleH = Math.max(h, 90);
+          shapesToCreate.push({
+            type: 'geo',
+            x: startX,
+            y: currentY,
+            props: {
+              geo: 'ellipse',
+              w: circleW,
+              h: circleH,
+              richText: toRichText(rawText),
+              color,
+              fill: fill === 'none' ? 'semi' : fill,
+              font,
+              size: 's',
+            },
+          });
+          createdShapePos.push({ x: startX, y: currentY, w: circleW, h: circleH });
+          currentY += circleH + 24;
+        } else if (itemType === 'diamond') {
+          // Decision Diamond
+          const diaW = Math.max(w, 240);
+          const diaH = Math.max(h, 110);
+          shapesToCreate.push({
+            type: 'geo',
+            x: startX,
+            y: currentY,
+            props: {
+              geo: 'diamond',
+              w: diaW,
+              h: diaH,
+              richText: toRichText(rawText),
+              color: color === 'black' ? 'orange' : color,
+              fill: fill === 'none' ? 'semi' : fill,
+              font,
+              size: 's',
+            },
+          });
+          createdShapePos.push({ x: startX, y: currentY, w: diaW, h: diaH });
+          currentY += diaH + 24;
+        } else if (itemType === 'cloud') {
+          // Cloud / Memory Space Bubble
+          const cloudW = Math.max(w, 260);
+          const cloudH = Math.max(h, 100);
+          shapesToCreate.push({
+            type: 'geo',
+            x: startX,
+            y: currentY,
+            props: {
+              geo: 'cloud',
+              w: cloudW,
+              h: cloudH,
+              richText: toRichText(rawText),
+              color,
+              fill: 'pattern',
+              font,
+              size: 's',
+            },
+          });
+          createdShapePos.push({ x: startX, y: currentY, w: cloudW, h: cloudH });
+          currentY += cloudH + 24;
+        } else if (itemType === 'star') {
+          // Key Takeaway Badge
+          const starW = Math.max(w, 200);
+          const starH = Math.max(h, 120);
+          shapesToCreate.push({
+            type: 'geo',
+            x: startX,
+            y: currentY,
+            props: {
+              geo: 'star',
+              w: starW,
+              h: starH,
+              richText: toRichText(rawText),
+              color: 'yellow',
+              fill: 'solid',
+              font: 'draw',
+              size: 's',
+            },
+          });
+          createdShapePos.push({ x: startX, y: currentY, w: starW, h: starH });
+          currentY += starH + 24;
+        } else if (itemType === 'note' || itemType === 'sticky') {
           // PenEcho Yellow Tip Card
           const tipText = rawText.startsWith('💡') ? rawText : '💡 ' + rawText;
           const tipLines = tipText.split('\n');
@@ -205,9 +315,10 @@ export default function CanvasPage() {
               size: 's',
             },
           });
-          currentY += tipH + 24; // Generous 24px gap so cards never overlap
-        } else if (itemType === 'box' || itemType === 'rectangle') {
-          // PenEcho Concept Box
+          createdShapePos.push({ x: startX, y: currentY, w: tipW, h: tipH });
+          currentY += tipH + 24;
+        } else {
+          // Standard PenEcho Concept Box
           shapesToCreate.push({
             type: 'geo',
             x: startX,
@@ -217,29 +328,14 @@ export default function CanvasPage() {
               w,
               h,
               richText: toRichText(rawText),
-              color: color,
-              fill: i === 0 ? 'semi' : 'none',
-              font: 'mono',
+              color,
+              fill,
+              font,
               size: 's',
             },
           });
-          currentY += h + 24; // Generous 24px gap
-        } else {
-          // PenEcho Text Line
-          shapesToCreate.push({
-            type: 'text',
-            x: startX,
-            y: currentY,
-            props: {
-              richText: toRichText(rawText),
-              color: 'blue',
-              size: 's',
-              font: 'mono',
-              w,
-              autoSize: true,
-            },
-          });
-          currentY += 44;
+          createdShapePos.push({ x: startX, y: currentY, w, h });
+          currentY += h + 24;
         }
       });
 
