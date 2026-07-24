@@ -43,7 +43,7 @@ export async function POST(req: Request) {
                  { "type": "box", "text": "CONCEPT: Variable = Memory Box", "color": "blue" },
                  { "type": "box", "text": "Syntax: int age = 20;", "color": "green" },
                  { "type": "box", "text": "Memory Address 0x7F -> age: 20", "color": "black" },
-                 { "type": "sticky", "text": "💡 TIP: 'int' stores whole numbers without decimals!" }
+                 { "type": "note", "text": "💡 TIP: 'int' stores whole numbers without decimals!" }
                ]
              - Or plain string lines: ["Step 1: Identify x", "Step 2: Solve -> x = 5"]
              - NEVER leave "canvas_content" null when the student asks to teach, explain, or draw a concept!

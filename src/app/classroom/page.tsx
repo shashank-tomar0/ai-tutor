@@ -45,7 +45,24 @@ export default function CanvasPage() {
     const loadVoices = () => window.speechSynthesis.getVoices();
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
+
+    // Unlock browser audio on first user gesture (Chrome autoplay policy)
+    const unlockAudio = () => {
+      const synth = window.speechSynthesis;
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      try { synth.speak(u); synth.cancel(); } catch (_) {}
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
   }, []);
 
   // ==========================================================================
@@ -128,13 +145,14 @@ export default function CanvasPage() {
 
         if (itemType === 'sticky') {
           shapesToCreate.push({
-            type: 'sticky',
+            type: 'note',
             x: startX,
             y: currentY,
             props: {
               text: text,
               color: 'yellow',
               size: 'm',
+              font: 'draw',
             },
           });
           currentY += 160;
@@ -282,16 +300,24 @@ export default function CanvasPage() {
         body: JSON.stringify({ text, voice: voiceType === 'human' ? 'alloy' : 'echo' })
       });
 
-      if (res.ok && res.headers.get('Content-Type')?.includes('audio')) {
+      const contentType = res.headers.get('Content-Type') || '';
+      if (res.ok && contentType.includes('audio')) {
+        // Got real audio from cloud TTS
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         currentAudioRef.current = audio;
         audio.onended = finishSpeaking;
         audio.onerror = () => fallbackSpeechSynth(text, finishSpeaking);
-        await audio.play();
-        return;
+        try {
+          await audio.play();
+          return;
+        } catch (playErr) {
+          // Autoplay blocked — fall through to speech synth
+          console.warn('Cloud audio play blocked:', playErr);
+        }
       }
+      // Cloud TTS unavailable or returned JSON fallback — use browser speech synth
     } catch {
       // Fall back to Web Speech API
     }
