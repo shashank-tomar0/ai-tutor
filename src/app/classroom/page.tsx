@@ -111,7 +111,7 @@ export default function CanvasPage() {
     setEditor(editor);
   }, []);
 
-  // Capture canvas as base64 PNG (for vision/handwriting analysis)
+  // Capture canvas as high-res base64 PNG (for Vision OCR & handwriting analysis)
   const captureCanvasImage = useCallback(async (): Promise<string | null> => {
     if (!editor) return null;
     try {
@@ -123,7 +123,7 @@ export default function CanvasPage() {
         editor: editor as any,
         ids: [...shapeIds],
         format: 'png',
-        opts: { background: true, scale: 0.5 },
+        opts: { background: true, scale: 1.0 },
       });
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -440,40 +440,44 @@ export default function CanvasPage() {
 
 
 
-  const speakText = useCallback((text: string) => {
-    // Immediately unlock processing lock so UI & mic are ready for next interaction
-    isProcessingRef.current = false;
-    setIsConnecting(false);
+  // Ref for AudioContext used to fix Chrome SpeechSynthesis headphone routing bug.
+  // Chrome's speechSynthesis silently drops audio through non-default output devices
+  // (headphones, Bluetooth headsets) — a known Chromium bug open since 2015.
+  // A short silent oscillator burst before speak() forces Chrome to re-enumerate
+  // the active audio output device.
+  const audioPingCtxRef = useRef<AudioContext | null>(null);
 
-    setCaptionsText(text);
-    setCaptionsVisible(true);
-
-    if (voiceType === 'mute') {
-      setTimeout(() => setCaptionsVisible(false), 4000);
-      return;
+  const ensureAudioPing = useCallback(() => {
+    try {
+      if (!audioPingCtxRef.current || audioPingCtxRef.current.state === 'closed') {
+        audioPingCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      if (audioPingCtxRef.current.state === 'suspended') {
+        audioPingCtxRef.current.resume();
+      }
+      const ctx = audioPingCtxRef.current;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.001; // Nearly silent — just enough to wake the audio stack
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(0);
+      osc.stop(0.03);
+    } catch (_) {
+      // AudioContext unavailable — SpeechSynthesis will still attempt to speak
     }
+  }, []);
 
+  // Browser SpeechSynthesis voice — used directly for 'system' voice, and as
+  // a fallback when the TTS API is unreachable for 'human' voice.
+  const speakWithBrowserSynth = useCallback((cleanText: string) => {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     if (!synth) {
       setTimeout(() => setCaptionsVisible(false), 4000);
       return;
     }
 
-    // Clean markdown formatting from text for natural speech synthesis
-    const cleanText = text
-      .replace(/[*#_`~\\$%\[\]]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (!cleanText) {
-      setTimeout(() => setCaptionsVisible(false), 4000);
-      return;
-    }
-
-    // Cancel any previous utterance to avoid Chrome audio queue backlog
-    try {
-      synth.cancel();
-    } catch (_) {}
+    try { synth.cancel(); } catch (_) {}
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.0;
@@ -481,7 +485,6 @@ export default function CanvasPage() {
     utterance.volume = 1.0;
     utterance.lang = 'en-US';
 
-    // Pick best natural English voice from available browser voices
     const voices = synth.getVoices();
     if (voices && voices.length > 0) {
       const pick =
@@ -492,15 +495,12 @@ export default function CanvasPage() {
       if (pick) utterance.voice = pick;
     }
 
-    utterance.onend = () => {
-      setCaptionsVisible(false);
-    };
+    utterance.onend = () => setCaptionsVisible(false);
     utterance.onerror = (e) => {
       console.warn('SpeechSynthesis error:', e.error);
       setCaptionsVisible(false);
     };
 
-    // Periodic resume interval to bypass Chrome silence bug while utterance is playing
     const resumeTimer = setInterval(() => {
       if (!synth.speaking) {
         clearInterval(resumeTimer);
@@ -520,7 +520,79 @@ export default function CanvasPage() {
         setCaptionsVisible(false);
       }
     }, 80);
-  }, [voiceType]);
+  }, []);
+
+  // OpenRouter TTS voice: fetch MP3 from the server and play via Audio element.
+  // Audio element playback routes through the OS default device correctly for
+  // ALL output devices (speakers, headphones, Bluetooth headsets) — unlike
+  // window.speechSynthesis which has the Chrome headphone bug.
+  const speakWithTTS = useCallback(async (cleanText: string) => {
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText, voice: 'alloy' }),
+      });
+
+      if (!res.ok) throw new Error(`TTS API ${res.status}`);
+      const contentType = res.headers.get('Content-Type') || '';
+      if (!contentType.includes('audio')) throw new Error('TTS returned non-audio');
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        setCaptionsVisible(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        speakWithBrowserSynth(cleanText);
+      };
+
+      await audio.play();
+    } catch (_e) {
+      // TTS API unavailable — transparently fall back to browser SpeechSynthesis
+      speakWithBrowserSynth(cleanText);
+    }
+  }, [speakWithBrowserSynth]);
+
+  const speakText = useCallback((text: string) => {
+    // Immediately unlock processing lock so UI & mic are ready for next interaction
+    isProcessingRef.current = false;
+    setIsConnecting(false);
+
+    setCaptionsText(text);
+    setCaptionsVisible(true);
+
+    if (voiceType === 'mute') {
+      setTimeout(() => setCaptionsVisible(false), 4000);
+      return;
+    }
+
+    // Clean markdown formatting from text for natural speech
+    const cleanText = text
+      .replace(/[*#_`~\\$%\[\]]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanText) {
+      setTimeout(() => setCaptionsVisible(false), 4000);
+      return;
+    }
+
+    if (voiceType === 'human') {
+      // === HUMAN VOICE: OpenRouter TTS (MP3 via Audio element) ===
+      // MP3 playback works correctly with ALL audio output devices — no headphone bug.
+      speakWithTTS(cleanText);
+    } else {
+      // === SYSTEM VOICE: Browser SpeechSynthesis ===
+      // Pre-speak audio ping to improve headphone compatibility
+      ensureAudioPing();
+      speakWithBrowserSynth(cleanText);
+    }
+  }, [voiceType, ensureAudioPing, speakWithBrowserSynth, speakWithTTS]);
 
   // ==========================================================================
   // SEND MESSAGE TO AI (with full canvas & skill context)
@@ -568,6 +640,54 @@ export default function CanvasPage() {
   const handleSendMessage = useCallback((text: string) => {
     sendToAI(text);
   }, [sendToAI]);
+
+  // Handle explicit Handwriting OCR & Solve request
+  const handleReadHandwriting = useCallback(async () => {
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    setIsConnecting(true);
+
+    try {
+      const imageBase64 = await captureCanvasImage();
+      if (!imageBase64) {
+        addMessage('ai', "I don't see any handwriting or drawings on the canvas yet! Use the pen tool to write an equation or diagram, then click 'READ HANDWRITING' again.");
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+        return;
+      }
+
+      addMessage('user', "✏️ [Reading Handwritten Math & Diagrams on Whiteboard...]");
+
+      const formData = new FormData();
+      formData.append('text', "The student wrote math, code, or equations by hand on the whiteboard. Perform high-accuracy OCR on the handwritten text, equations, or diagrams. Explain what you recognize in response_text (e.g. 'I read your handwritten equation: 2x + 5 = 15'), then solve it step-by-step using PenEcho visual shape cards!");
+      formData.append('image', imageBase64);
+      const shapes = editor ? editor.getCurrentPageShapes() : [];
+      formData.append('shapes', JSON.stringify(shapes));
+      if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
+      if (user?.id) formData.append('user_id', user.id);
+      if (user?.email) formData.append('student_name', user.email.split('@')[0]);
+
+      const res = await fetch("/api/chat-audio", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (data.type === "ai_response") {
+        const aiText = data.text || "I read your handwriting! Here's the step-by-step solution.";
+        addMessage('ai', aiText);
+        if (data.canvas_content && Array.isArray(data.canvas_content) && data.canvas_content.length > 0) {
+          writeToCanvas(data.canvas_content);
+        }
+        speakText(aiText);
+      } else {
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+      }
+    } catch (err) {
+      console.error("Handwriting OCR request failed:", err);
+      addMessage('ai', "Sorry, I had trouble reading the canvas image. Please make sure your drawing is clear and try again.");
+      isProcessingRef.current = false;
+      setIsConnecting(false);
+    }
+  }, [editor, selectedSkill, user, addMessage, writeToCanvas, speakText, captureCanvasImage]);
 
   // Handle audio blob from ChatSidebar mic button
   const handleSendAudio = useCallback(async (blob: Blob) => {
@@ -811,6 +931,16 @@ export default function CanvasPage() {
           >
             <span>📥</span>
             <span className="hidden sm:inline">IMPORT ASSIGNMENT</span>
+          </button>
+
+          {/* READ HANDWRITING & SOLVE BUTTON */}
+          <button
+            onClick={handleReadHandwriting}
+            title="Read handwritten math, text, or diagrams on whiteboard and solve"
+            className="flex items-center gap-1.5 border-2 border-black bg-amber-400 text-black px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] hover:bg-amber-300 transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-px active:translate-y-px"
+          >
+            <span>✏️</span>
+            <span>READ HANDWRITING & SOLVE</span>
           </button>
         </div>
 
