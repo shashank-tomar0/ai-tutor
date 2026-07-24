@@ -18,6 +18,7 @@ export async function POST(req: Request) {
     const skillRaw = formData.get('skill') as string;
     const userIdRaw = formData.get('user_id') as string | null;
     const studentNameRaw = formData.get('student_name') as string | null;
+    const imageBase64 = formData.get('image') as string | null;
 
     let skillContext = "";
     let parsedSkill: any = null;
@@ -60,23 +61,39 @@ export async function POST(req: Request) {
 
     const canvasContext = parseCanvas(parsedShapes);
 
-    // 3. Query Groq LLM Socratic Engine
+    // 3. Multimodal vision vs text query
+    let userContent: any = `Student says: "${transcript}"`;
+    let selectedModel = "llama-3.3-70b-versatile";
+
+    if (imageBase64 && imageBase64.length > 50) {
+      selectedModel = "llama-3.2-11b-vision-instruct";
+      userContent = [
+        { type: "text", text: `Student says: "${transcript}"\nInspect the canvas screenshot for handwriting, drawn diagrams, or math equations.` },
+        { type: "image_url", image_url: { url: `data:image/png;base64,${imageBase64}` } }
+      ];
+    }
+
+    // 4. Query Groq LLM Socratic Engine
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `You are Newton, an expert Socratic AI tutor. You guide students through Socratic questioning — you NEVER just give answers directly.
+          content: `You are Newton, an expert AI Socratic Tutor & Canvas Instructor.
           ${skillContext ? `\nCurrent skill focus: ${skillContext}` : ''}
           Canvas state: ${canvasContext}
 
-          Your job:
-          - Listen to what the student said and look at their canvas
-          - Ask a guiding Socratic question to make them THINK — do NOT give a direct answer unless explicitly explaining a concept when asked
-          - If you want to draw something helpful on the canvas (numbered steps, an equation, a diagram label), put ONLY that in "canvas_content" as a short array of lines
-          - NEVER put your chat response into "canvas_content" — those are separate
-          - "canvas_content" should ONLY appear when there is genuine visual value (e.g. a formula, labeled steps, a diagram key)
-          - Keep "response_text" conversational, warm, and under 3 sentences
-          - Be encouraging and reference what the student actually said or drew
+          Core Rules for Teaching & Canvas:
+          1. WHEN A STUDENT ASKS TO LEARN / TEACH / EXPLAIN / DRAW A CONCEPT:
+             - IMMEDIATELY teach the concept clearly using BOTH the chat response AND the canvas!
+             - ALWAYS populate "canvas_content" with a clean visual breakdown (code syntax, memory diagrams, equations, or numbered steps).
+             - In "response_text": Explain the core idea in 1-2 friendly sentences with a real-world analogy, then end with ONE light check question.
+          2. WHEN SOLVING AN EXERCISE OR PROBLEM:
+             - If they make a mistake or get stuck, ask a guiding Socratic question to help them find their error instead of giving away the final solution.
+          3. CANVAS CONTENT FORMAT:
+             - "canvas_content" MUST be an array of short visual lines.
+             - Examples for "Variables in C":
+               ["CONCEPT: Variable = Storage Box in Memory", "Syntax: int age = 20;", "int   -> Data type (whole number)", "age   -> Variable name", "20    -> Stored value"]
+             - NEVER leave "canvas_content" null when the student asks to teach, explain, or draw a concept!
 
           Respond ONLY in this exact JSON format:
           {
@@ -88,10 +105,10 @@ export async function POST(req: Request) {
         },
         {
           role: "user",
-          content: `Student says: "${transcript}"`
+          content: userContent
         }
       ],
-      model: "llama-3.3-70b-versatile",
+      model: selectedModel,
       response_format: { type: "json_object" }
     });
 

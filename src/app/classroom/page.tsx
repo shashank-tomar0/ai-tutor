@@ -307,6 +307,10 @@ export default function CanvasPage() {
       formData.append('text', text);
       const shapes = editor ? editor.getCurrentPageShapes() : [];
       formData.append('shapes', JSON.stringify(shapes));
+      if (shapes && shapes.length > 0) {
+        const imageBase64 = await captureCanvasImage();
+        if (imageBase64) formData.append('image', imageBase64);
+      }
       if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
       if (user?.id) formData.append('user_id', user.id);
       if (user?.email) formData.append('student_name', user.email.split('@')[0]);
@@ -380,6 +384,10 @@ export default function CanvasPage() {
               formData.append('file', audioBlob, 'audio.webm');
               const shapes = editor ? editor.getCurrentPageShapes() : [];
               formData.append('shapes', JSON.stringify(shapes));
+              if (shapes && shapes.length > 0) {
+                const imageBase64 = await captureCanvasImage();
+                if (imageBase64) formData.append('image', imageBase64);
+              }
               if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
               if (user?.id) formData.append('user_id', user.id);
               if (user?.email) formData.append('student_name', user.email.split('@')[0]);
