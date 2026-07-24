@@ -143,19 +143,32 @@ export default function CanvasPage() {
         const itemType = itemObj?.type || 'box';
         const color = itemObj?.color || (i === 0 ? 'blue' : 'black');
 
+        // Split text by lines to accurately compute required box dimensions without overlapping
+        const lines = rawText.split('\n');
+        const maxLineLen = Math.max(...lines.map((l: string) => l.length), 10);
+
+        // Width: scaled to longest line length, min 280px, max 540px
+        const w = Math.min(Math.max(maxLineLen * 11, 280), 540);
+
+        // Height: line count * 36px + 36px padding to ensure text never overflows
+        const h = Math.max(lines.length * 36 + 36, 72);
+
         if (itemType === 'note' || itemType === 'sticky') {
-          // Yellow tip card — use geo rectangle with yellow solid fill (note shape is unreliable)
+          // PenEcho Yellow Tip Card
           const tipText = rawText.startsWith('💡') ? rawText : '💡 ' + rawText;
-          const w = Math.min(Math.max(tipText.length * 8, 240), 480);
-          const h = Math.max(Math.ceil(tipText.length / 40) * 28, 52);
+          const tipLines = tipText.split('\n');
+          const tipMaxLen = Math.max(...tipLines.map((l: string) => l.length), 10);
+          const tipW = Math.min(Math.max(tipMaxLen * 11, 280), 540);
+          const tipH = Math.max(tipLines.length * 36 + 36, 72);
+
           shapesToCreate.push({
             type: 'geo',
             x: startX,
             y: currentY,
             props: {
               geo: 'rectangle',
-              w,
-              h,
+              w: tipW,
+              h: tipH,
               richText: toRichText(tipText),
               color: 'yellow',
               fill: 'solid',
@@ -163,10 +176,9 @@ export default function CanvasPage() {
               size: 's',
             },
           });
-          currentY += h + 16;
+          currentY += tipH + 24; // Generous 24px gap so cards never overlap
         } else if (itemType === 'box' || itemType === 'rectangle') {
-          const w = Math.min(Math.max(rawText.length * 10, 240), 500);
-          const h = Math.max(Math.ceil(rawText.length / 32) * 32, 55);
+          // PenEcho Concept Box
           shapesToCreate.push({
             type: 'geo',
             x: startX,
@@ -182,10 +194,9 @@ export default function CanvasPage() {
               size: 's',
             },
           });
-          currentY += h + 16;
+          currentY += h + 24; // Generous 24px gap
         } else {
-          // Default: plain text line
-          const w = Math.min(Math.max(rawText.length * 9, 200), 500);
+          // PenEcho Text Line
           shapesToCreate.push({
             type: 'text',
             x: startX,
@@ -199,13 +210,13 @@ export default function CanvasPage() {
               autoSize: true,
             },
           });
-          currentY += 38;
+          currentY += 44;
         }
       });
 
       (editor as any).createShapes(shapesToCreate);
     } catch (e) {
-      console.warn('Could not write canvas shapes:', e);
+      console.warn('Could not write PenEcho canvas shapes:', e);
     }
   }, [editor, toRichText]);
 
@@ -285,36 +296,35 @@ export default function CanvasPage() {
       return;
     }
 
-    // Safety net — always release lock after 20s max
-    const safetyTimeout = setTimeout(finishSpeaking, 20000);
+    // Failsafe timeout: guarantee processing lock is released after 25s max
+    const safetyTimeout = setTimeout(finishSpeaking, 25000);
 
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     if (!synth) { clearTimeout(safetyTimeout); finishSpeaking(); return; }
 
-    // Clean markdown from text
+    // Clean markdown formatting from text for natural speech synthesis
     const cleanText = text
       .replace(/[*#_`~\\$%\[\]]/g, ' ')
       .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 600); // cap length so it doesn't time out
+      .trim();
 
     if (!cleanText) { clearTimeout(safetyTimeout); finishSpeaking(); return; }
 
-    // Cancel any ongoing speech first, then wait for Chrome to settle
+    // Cancel any previous utterance to avoid Chrome audio queue backlog
     synth.cancel();
 
     const doSpeak = () => {
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.05;
+      utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
       utterance.lang = 'en-US';
 
-      // Pick best English voice
+      // Pick best natural English voice from available browser voices
       const voices = synth.getVoices();
-      if (voices.length > 0) {
+      if (voices && voices.length > 0) {
         const pick =
-          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural'))) ||
+          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('David'))) ||
           voices.find(v => v.lang === 'en-US') ||
           voices.find(v => v.lang.startsWith('en')) ||
           voices[0];
@@ -336,14 +346,15 @@ export default function CanvasPage() {
         finish();
       };
 
-      // Chrome 15s freeze fix: periodically resume
+      // Periodic resume to bypass Chrome 15-second SpeechSynthesis silence bug
       const resumeTimer = setInterval(() => {
         if (!synth.speaking || done) { clearInterval(resumeTimer); return; }
         synth.resume();
-      }, 3000);
+      }, 2000);
 
       try {
         synth.speak(utterance);
+        synth.resume(); // Immediately unpause if Chrome started in paused state
       } catch (e) {
         console.warn('synth.speak threw:', e);
         clearInterval(resumeTimer);
@@ -351,8 +362,8 @@ export default function CanvasPage() {
       }
     };
 
-    // Wait 200ms after cancel for Chrome to fully clear its queue
-    setTimeout(doSpeak, 200);
+    // Wait 150ms after cancel so Chrome audio thread clears completely
+    setTimeout(doSpeak, 150);
   }, [voiceType]);
 
   // ==========================================================================
