@@ -133,7 +133,36 @@ export default function CanvasPage() {
       const bounds = (editor as any).getViewportPageBounds();
       // Place AI shapes on right side of canvas alongside student work
       const startX = bounds.x + Math.max(bounds.w * 0.45, 400);
+
+      // Dynamically calculate starting Y so new AI shapes NEVER overwrite previous shapes!
       let currentY = bounds.y + 60;
+      try {
+        const pageShapes = (editor as any).getCurrentPageShapes();
+        if (pageShapes && pageShapes.length > 0) {
+          let maxBottom = bounds.y + 60;
+          const aiShapesToDelete: string[] = [];
+
+          pageShapes.forEach((shape: any) => {
+            // Check shapes located in the AI column (right side of canvas)
+            if (shape.x >= startX - 100) {
+              const shapeH = shape.props?.h || 60;
+              const bottom = shape.y + shapeH;
+              if (bottom > maxBottom) maxBottom = bottom;
+              aiShapesToDelete.push(shape.id);
+            }
+          });
+
+          // If current AI column height exceeds 1400px, clear old column shapes so board stays clean
+          if (maxBottom - bounds.y > 1400 && aiShapesToDelete.length > 0) {
+            (editor as any).deleteShapes(aiShapesToDelete);
+            currentY = bounds.y + 60;
+          } else if (maxBottom > bounds.y + 60) {
+            currentY = maxBottom + 40; // Stack 40px below lowest existing shape!
+          }
+        }
+      } catch (_err) {
+        currentY = bounds.y + 60;
+      }
 
       const shapesToCreate: any[] = [];
 
