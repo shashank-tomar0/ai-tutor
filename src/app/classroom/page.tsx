@@ -3,14 +3,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { Mic, MicOff, Brain, Loader2, ArrowLeft, Send, Volume2, VolumeX, Database, HelpCircle, ChevronLeft, ChevronRight, Sparkles, Target, BookOpen, Award, CheckCircle } from 'lucide-react';
+import { Brain, Loader2, ArrowLeft, Target, ChevronLeft, Sparkles, BookOpen, CheckCircle, Database } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
+import ChatSidebar, { ChatMessage } from '@/components/ChatSidebar';
+import CaptionsBar from '@/components/CaptionsBar';
 
 // ============================================================================
-// SKILL TREE TYPES
+// TYPES
 // ============================================================================
 
 interface Skill {
@@ -25,13 +27,6 @@ interface Skill {
   mastery_level: number;
   attempts: number;
   children?: Skill[];
-  prerequisites_met?: boolean;
-}
-
-interface SkillRecommendation {
-  skill: Skill;
-  reason: string;
-  unlocks: number;
 }
 
 export default function CanvasPage() {
@@ -39,178 +34,109 @@ export default function CanvasPage() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [voiceType, setVoiceType] = useState<'human' | 'system' | 'mute'>('human');
-  const [textInput, setTextInput] = useState("");
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
 
+  // Chat messages
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Captions
+  const [captionsText, setCaptionsText] = useState('');
+  const [captionsVisible, setCaptionsVisible] = useState(false);
+  const [captionsTyping, setCaptionsTyping] = useState(false);
+
   // Skill tree state
   const [skillTree, setSkillTree] = useState<Skill[]>([]);
-  const [skillRecommendations, setSkillRecommendations] = useState<SkillRecommendation[]>([]);
+  const [skillRecommendations, setSkillRecommendations] = useState<any[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [showSkillPanel, setShowSkillPanel] = useState(true);
   const [isLoadingSkills, setIsLoadingSkills] = useState(true);
 
   const rrwebEventsRef = useRef<any[]>([]);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
+  const msgIdCounter = useRef(0);
+
+  // ==========================================================================
+  // AUTH + INIT
+  // ==========================================================================
 
   useEffect(() => {
-    // Check Authentication
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push('/login');
-      } else {
-        setUser(session.user);
-      }
+      if (!session) { router.push('/login'); }
+      else { setUser(session.user); }
     });
 
     synthesisRef.current = window.speechSynthesis;
-
-    // Fetch skill tree with progress
     fetchSkills();
     fetchRecommendations();
-    
-    // Start recording DOM events silently
+
     const stopRecording = rrweb.record({
       emit(event) {
         rrwebEventsRef.current.push(event);
-        // Prevent memory leak by keeping only the last 1500 events
-        if (rrwebEventsRef.current.length > 1500) {
-           rrwebEventsRef.current.shift();
-        }
+        if (rrwebEventsRef.current.length > 1500) rrwebEventsRef.current.shift();
       },
     });
-    return () => {
-      if (stopRecording) stopRecording();
-    };
-  }, [router]);
+    return () => { if (stopRecording) stopRecording(); };
+  }, []);
+
+  // ==========================================================================
+  // CANVAS
+  // ==========================================================================
 
   const handleMount = useCallback((editor: Editor) => {
     setEditor(editor);
   }, []);
 
-  // ============================================================================
-  // SKILL TREE DATA FETCHING
-  // ============================================================================
+  // Write AI explanation to the canvas as text shapes
+  const writeToCanvas = useCallback(async (text: string) => {
+    if (!editor) return;
+    // Create a text shape with the AI's explanation
+    // Position it in a visible area of the canvas
+    const center = (editor as any).getViewportPageBounds();
+    (editor as any).createShape({
+      type: 'text',
+      x: center.x + 40,
+      y: center.y + 40,
+      props: {
+        text: text,
+        color: 'black',
+        size: 'm',
+        font: 'sans',
+        w: Math.min(text.length * 6, 400),
+        autoSize: true,
+      },
+    });
+  }, [editor]);
 
-  const fetchSkills = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
+  // ==========================================================================
+  // MESSAGES
+  // ==========================================================================
 
-      const res = await fetch(`/api/skills?userId=${session.user.id}`);
-      const data = await res.json();
-      if (data.skills) {
-        setSkillTree(data.skills);
-      }
-    } catch (err) {
-      console.warn("Could not fetch skills tree, using empty state.", err);
-    } finally {
-      setIsLoadingSkills(false);
-    }
-  };
+  const addMessage = useCallback((role: 'user' | 'ai', text: string) => {
+    msgIdCounter.current += 1;
+    const msg: ChatMessage = {
+      id: `msg-${msgIdCounter.current}`,
+      role,
+      text,
+      timestamp: Date.now(),
+    };
+    setMessages(prev => [...prev, msg]);
+    return msg;
+  }, []);
 
-  const fetchRecommendations = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
+  // ==========================================================================
+  // TTS (Text-to-Speech)
+  // ==========================================================================
 
-      const res = await fetch(`/api/skills/recommendations?userId=${session.user.id}`);
-      const data = await res.json();
-      if (data.candidates) {
-        setSkillRecommendations(data.candidates.map((c: any) => ({
-          skill: c.skill,
-          reason: c.reason,
-          unlocks: c.unlocks || 0,
-          priority: c.score
-        })));
-      }
-    } catch (err) {
-      console.warn("Could not fetch recommendations.", err);
-    }
-  };
+  const speakResponse = useCallback(async (text: string) => {
+    // Show captions
+    setCaptionsText(text);
+    setCaptionsVisible(true);
+    setCaptionsTyping(true);
 
-  const handleSkillSelect = (skill: Skill) => {
-    setSelectedSkill(skill);
-    // Skill context is injected into the next API call
-    const msg = `Let's work on ${skill.name}. ${skill.description}`;
-    speakResponse(msg);
-  };
-
-  // ============================================================================
-  // MASTERY UI HELPERS
-  // ============================================================================
-
-  const getMasteryColor = (mastery: number) => {
-    if (mastery === 0) return 'border-black/20 text-black/30';
-    if (mastery < 0.3) return 'border-red-500 text-red-600';
-    if (mastery < 0.6) return 'border-amber-500 text-amber-600';
-    if (mastery < 0.85) return 'border-blue-500 text-blue-600';
-    return 'border-green-500 text-green-600';
-  };
-
-  const getMasteryBg = (mastery: number) => {
-    if (mastery === 0) return 'bg-black/5';
-    if (mastery < 0.3) return 'bg-red-50';
-    if (mastery < 0.6) return 'bg-amber-50';
-    if (mastery < 0.85) return 'bg-blue-50';
-    return 'bg-green-50';
-  };
-
-  const getMasteryLabel = (mastery: number) => {
-    if (mastery === 0) return 'Not Started';
-    if (mastery < 0.3) return 'Struggling';
-    if (mastery < 0.6) return 'Developing';
-    if (mastery < 0.85) return 'Proficient';
-    return 'Mastered';
-  };
-
-  // Recursive skill tree renderer
-  const renderSkillNode = (skill: Skill, depth: number = 0) => {
-    const mastery = skill.mastery_level || 0;
-    const isSelected = selectedSkill?.id === skill.id;
-    const hasChildren = skill.children && skill.children.length > 0;
-
-    return (
-      <div key={skill.id}>
-        <button
-          onClick={() => handleSkillSelect(skill)}
-          className={`w-full text-left px-3 py-2 flex items-center gap-2 text-xs font-bold uppercase tracking-tight border-l-2 transition-all hover:bg-black hover:text-white group
-            ${isSelected ? 'bg-black text-white border-l-black' : `border-transparent ${getMasteryColor(mastery)}`}
-          `}
-          style={{ paddingLeft: `${12 + depth * 16}px` }}
-          title={skill.description}
-        >
-          <span className="text-base flex-shrink-0">{skill.icon}</span>
-          <span className="flex-1 truncate">{skill.name}</span>
-
-          {/* Mastery indicator */}
-          <div className="flex-shrink-0 flex items-center gap-1">
-            {mastery > 0 && (
-              <div className={`w-1.5 h-1.5 rounded-full ${mastery >= 0.85 ? 'bg-green-500' : mastery >= 0.6 ? 'bg-blue-500' : mastery >= 0.3 ? 'bg-amber-500' : 'bg-red-500'}`} />
-            )}
-            {mastery >= 0.85 && <CheckCircle size={10} className="text-green-600" />}
-          </div>
-        </button>
-
-        {/* Children */}
-        {hasChildren && skill.children!.map((child: Skill) => renderSkillNode(child, depth + 1))}
-      </div>
-    );
-  };
-
-  // ============================================================================
-  // Web Audio + MediaRecorder Setup for Bulletproof VAD
-  // ============================================================================
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const isSpeakingRef = useRef(false);
-  const isProcessingRef = useRef(false);
-
-  // ElevenLabs and SpeechSynthesis handlers
-  const speakResponse = async (text: string) => {
     if (voiceType === 'mute') {
+      setTimeout(() => { setCaptionsTyping(false); }, text.split(' ').length * 60);
+      setTimeout(() => { setCaptionsVisible(false); }, text.split(' ').length * 60 + 2000);
       isProcessingRef.current = false;
       setIsConnecting(false);
       return;
@@ -223,42 +149,38 @@ export default function CanvasPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text }),
         });
-        
+
         const data = await res.clone().json().catch(() => null);
-        if (data && data.fallback) {
-          console.warn("ElevenLabs TTS key not configured or failed, falling back to system TTS.");
+        if (data?.fallback) {
           speakSystem(text);
         } else {
           const audioBlob = await res.blob();
           const audioUrl = URL.createObjectURL(audioBlob);
           const audio = new Audio(audioUrl);
           audio.onended = () => {
+            setCaptionsTyping(false);
+            setTimeout(() => setCaptionsVisible(false), 2000);
             isProcessingRef.current = false;
             setIsConnecting(false);
           };
-          audio.onerror = () => {
-            console.error("Audio playback error, falling back to system TTS.");
-            speakSystem(text);
-          };
-          audio.play().catch(e => {
-            console.error("Failed to play audio, falling back to system TTS:", e);
-            speakSystem(text);
-          });
+          audio.onerror = () => { setCaptionsTyping(false); speakSystem(text); };
+          audio.play().catch(() => speakSystem(text));
         }
-      } catch (err) {
-        console.error("ElevenLabs TTS error, falling back to system TTS:", err);
+      } catch {
         speakSystem(text);
       }
     } else {
       speakSystem(text);
     }
-  };
+  }, [voiceType]);
 
-  const speakSystem = (text: string) => {
+  const speakSystem = useCallback((text: string) => {
     if (synthesisRef.current) {
       synthesisRef.current.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.onend = () => {
+        setCaptionsTyping(false);
+        setTimeout(() => setCaptionsVisible(false), 2000);
         isProcessingRef.current = false;
         setIsConnecting(false);
       };
@@ -271,81 +193,60 @@ export default function CanvasPage() {
       isProcessingRef.current = false;
       setIsConnecting(false);
     }
-  };
+  }, []);
 
-  const saveSessionReplay = async () => {
-    if (rrwebEventsRef.current.length === 0) {
-      console.log("No events to save.");
-      return;
-    }
+  // ==========================================================================
+  // SEND MESSAGE TO AI
+  // ==========================================================================
 
-    const studentName = user?.email?.split('@')[0] || 'Anonymous Student';
-    const canvasSnapshot = editor ? editor.getCurrentPageShapes() : [];
-
-    // Analyze concept if possible
-    let concept = "General Socratic";
-    if (canvasSnapshot.length > 0) {
-      const textShape = canvasSnapshot.find((s: any) => s.type === 'text');
-      if (textShape && (textShape as any).props?.text) {
-        concept = (textShape as any).props.text.slice(0, 30);
-      }
-    }
-
-    try {
-      const { error } = await supabase.from('session_replays').insert([{
-        user_id: user?.id || null,
-        student_name: studentName,
-        concept: concept,
-        events: rrwebEventsRef.current,
-        canvas_snapshot: canvasSnapshot
-      }]);
-
-      if (error) throw error;
-      alert("🎉 Your session replay has been successfully saved to the Cloud Database!");
-    } catch (err) {
-      console.error("Failed to save replay to Supabase. Downloading local file fallback.", err);
-      
-      // Auto download JSON file
-      const blob = new Blob([JSON.stringify(rrwebEventsRef.current)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `newton-replay-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      alert("NOTICE: Database connection failed or migrations not applied yet. Your replay has been downloaded locally as a JSON file.");
-    }
-  };
-
-  const handleTextInputSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!textInput.trim() || isProcessingRef.current) return;
-
-    const queryText = textInput;
-    setTextInput("");
+  const sendToAI = useCallback(async (text: string, fromVoice: boolean = false) => {
     isProcessingRef.current = true;
     setIsConnecting(true);
 
+    // Add user message to chat
+    addMessage('user', text);
+
     try {
       const formData = new FormData();
-      formData.append('text', queryText);
+      if (fromVoice) {
+        formData.append('file', text as any, 'audio.webm'); // voice path uses audio blob
+      } else {
+        formData.append('text', text);
+      }
       const shapes = editor ? editor.getCurrentPageShapes() : [];
       formData.append('shapes', JSON.stringify(shapes));
       if (selectedSkill) {
-        formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name, description: selectedSkill.description }));
+        formData.append('skill', JSON.stringify({
+          id: selectedSkill.id,
+          name: selectedSkill.name,
+          description: selectedSkill.description,
+        }));
       }
 
       const res = await fetch("/api/chat-audio", {
         method: "POST",
-        body: formData
+        body: fromVoice ? text as any : formData,
       });
 
-      const data = await res.json();
+      // Retry without file if voice was used (the FormData already has text appended above)
+      const actualRes = fromVoice
+        ? await fetch("/api/chat-audio", { method: "POST", body: formData })
+        : res;
+      const data = await actualRes.json();
+
       if (data.type === "ai_response") {
-        speakResponse(data.text);
-        // Mark this as a successful skill interaction
+        const aiText = data.text || "I'm listening. Tell me more.";
+
+        // Add AI message to chat
+        addMessage('ai', aiText);
+
+        // Write to canvas
+        writeToCanvas(aiText);
+
+        // Speak it + captions
+        speakResponse(aiText);
+
+        // Update skill progress
         if (selectedSkill && data.is_struggling === false) {
           updateSkillProgress(user?.id, selectedSkill.id, true);
         }
@@ -354,11 +255,30 @@ export default function CanvasPage() {
         setIsConnecting(false);
       }
     } catch (err) {
-      console.error("Failed to send text request", err);
+      console.error("AI request failed:", err);
       isProcessingRef.current = false;
       setIsConnecting(false);
     }
-  };
+  }, [editor, selectedSkill, user?.id, addMessage, writeToCanvas, speakResponse]);
+
+  // ==========================================================================
+  // CHAT INPUT HANDLER
+  // ==========================================================================
+
+  const handleSendMessage = useCallback((text: string) => {
+    sendToAI(text, false);
+  }, [sendToAI]);
+
+  // ==========================================================================
+  // VOICE PIPELINE (VAD)
+  // ==========================================================================
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const isSpeakingRef = useRef(false);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     if (!isSessionActive) return;
@@ -368,10 +288,9 @@ export default function CanvasPage() {
     const startMicrophone = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
         const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
         audioContextRef.current = audioContext;
-        
+
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 512;
         const source = audioContext.createMediaStreamSource(stream);
@@ -381,9 +300,7 @@ export default function CanvasPage() {
         mediaRecorderRef.current = mediaRecorder;
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
+          if (event.data.size > 0) audioChunksRef.current.push(event.data);
         };
 
         mediaRecorder.onstop = async () => {
@@ -405,103 +322,161 @@ export default function CanvasPage() {
                 formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name }));
               }
 
-              const res = await fetch("/api/chat-audio", {
-                method: "POST",
-                body: formData
-              });
-
+              const res = await fetch("/api/chat-audio", { method: "POST", body: formData });
               const data = await res.json();
+
               if (data.transcript) {
-                 console.log("🎤 Heard:", data.transcript);
+                // Add user voice transcript as message
+                addMessage('user', data.transcript);
               }
 
               if (data.type === "ai_response") {
-                console.log("🤖 AI says:", data.text);
-                speakResponse(data.text);
+                const aiText = data.text || "I'm listening.";
+                addMessage('ai', aiText);
+                writeToCanvas(aiText);
+                speakResponse(aiText);
+
+                if (selectedSkill && data.is_struggling === false) {
+                  updateSkillProgress(user?.id, selectedSkill.id, true);
+                }
               } else {
                 isProcessingRef.current = false;
                 setIsConnecting(false);
               }
-            } catch (e) {
-              console.error("Failed to send audio", e);
+            } catch {
               isProcessingRef.current = false;
               setIsConnecting(false);
             }
           } else {
-             isProcessingRef.current = false;
-             setIsConnecting(false);
+            isProcessingRef.current = false;
+            setIsConnecting(false);
           }
         };
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        
+
         const checkAudio = () => {
           if (!isSessionActive) return;
           analyser.getByteFrequencyData(dataArray);
           let sum = 0;
           for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-          const average = sum / dataArray.length;
+          const avg = sum / dataArray.length;
 
-          if (average > 15 && !isProcessingRef.current) {
+          if (avg > 15 && !isProcessingRef.current) {
             if (mediaRecorder.state === 'inactive') {
-               mediaRecorder.start();
-               isSpeakingRef.current = true;
-               console.log("Started recording...");
+              mediaRecorder.start();
+              isSpeakingRef.current = true;
             }
             if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
-            
             silenceTimeoutRef.current = setTimeout(() => {
-               if (mediaRecorder.state === 'recording') {
-                  mediaRecorder.stop();
-                  isSpeakingRef.current = false;
-                  console.log("Stopped recording due to silence.");
-               }
+              if (mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                isSpeakingRef.current = false;
+              }
             }, 1500);
           }
-
           animationFrameId = requestAnimationFrame(checkAudio);
         };
 
         checkAudio();
-
-      } catch (err) {
-        console.error("Error accessing mic:", err);
+      } catch {
         setIsSessionActive(false);
-        alert("Microphone access is required for Socratic Voice interaction. You can still use Socratic text backup!");
+        alert("Microphone access required. You can still type in the chat panel.");
       }
     };
 
     startMicrophone();
 
     return () => {
-       if (animationFrameId) cancelAnimationFrame(animationFrameId);
-       if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
-       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.stop();
-       }
-       if (audioContextRef.current) {
-          audioContextRef.current.close();
-       }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+      if (audioContextRef.current) audioContextRef.current.close();
     };
-  }, [editor, isSessionActive]);
+  }, [editor, isSessionActive, selectedSkill, user?.id, addMessage, writeToCanvas, speakResponse]);
+
+  // ==========================================================================
+  // SESSION TOGGLE
+  // ==========================================================================
 
   const toggleSession = () => {
     if (isSessionActive) {
       setIsSessionActive(false);
       if (synthesisRef.current) synthesisRef.current.cancel();
+      setCaptionsVisible(false);
       saveSessionReplay();
     } else {
       setIsSessionActive(true);
       rrwebEventsRef.current = [];
       const skillCtx = selectedSkill ? ` Let's focus on ${selectedSkill.name}.` : '';
-      const msg = `Hello! I'm Newton. I can see your canvas.${skillCtx} What are we working on today?`;
-      speakResponse(msg);
+      const greeting = `Hello! I'm Newton. I can see your canvas.${skillCtx} What are we working on today?`;
+      addMessage('ai', greeting);
+      speakResponse(greeting);
     }
   };
 
-  // ============================================================================
-  // SKILL PROGRESS UPDATE
-  // ============================================================================
+  // ==========================================================================
+  // SAVE REPLAY
+  // ==========================================================================
+
+  const saveSessionReplay = async () => {
+    if (rrwebEventsRef.current.length === 0) return;
+
+    const studentName = user?.email?.split('@')[0] || 'Anonymous Student';
+    const canvasSnapshot = editor ? editor.getCurrentPageShapes() : [];
+    let concept = selectedSkill?.name || "General Socratic";
+
+    try {
+      const { error } = await supabase.from('session_replays').insert([{
+        user_id: user?.id,
+        student_name: studentName,
+        concept,
+        events: rrwebEventsRef.current,
+        canvas_snapshot: canvasSnapshot,
+      }]);
+      if (error) throw error;
+    } catch {
+      const blob = new Blob([JSON.stringify(rrwebEventsRef.current)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `newton-replay-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  };
+
+  // ==========================================================================
+  // SKILL TREE
+  // ==========================================================================
+
+  const fetchSkills = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const res = await fetch(`/api/skills?userId=${session.user.id}`);
+      const data = await res.json();
+      if (data.skills) setSkillTree(data.skills);
+    } catch { /* ignore */ } finally { setIsLoadingSkills(false); }
+  };
+
+  const fetchRecommendations = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const res = await fetch(`/api/skills/recommendations?userId=${session.user.id}`);
+      const data = await res.json();
+      if (data.candidates) setSkillRecommendations(data.candidates);
+    } catch { /* ignore */ }
+  };
+
+  const handleSkillSelect = (skill: Skill) => {
+    setSelectedSkill(skill);
+    const msg = `Let's work on ${skill.name}. ${skill.description}`;
+    addMessage('ai', msg);
+    speakResponse(msg);
+  };
 
   const updateSkillProgress = async (userId: string | undefined, skillId: string, success: boolean) => {
     if (!userId) return;
@@ -509,74 +484,72 @@ export default function CanvasPage() {
       await fetch('/api/skills/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, skillId, success })
+        body: JSON.stringify({ userId, skillId, success }),
       });
-      // Refresh recommendations after update
       fetchRecommendations();
-      // Refresh skill tree to show updated progress
       fetchSkills();
-    } catch (err) {
-      console.warn("Failed to update skill progress:", err);
-    }
+    } catch { /* ignore */ }
   };
 
-  return (
-    <div style={{ position: 'fixed', inset: 0 }} className="bg-white font-sans text-black">
-      <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" />
+  // ==========================================================================
+  // UI HELPERS
+  // ==========================================================================
 
-      {/* Top Controls Bar */}
-      <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-center pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <Link href="/" className="flex items-center space-x-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <ArrowLeft size={14} />
-            <span>INDEX</span>
-          </Link>
+  const getMasteryColor = (m: number) => {
+    if (m === 0) return 'text-black/30';
+    if (m < 0.3) return 'text-red-600';
+    if (m < 0.6) return 'text-amber-600';
+    if (m < 0.85) return 'text-blue-600';
+    return 'text-green-600';
+  };
 
-          {/* Skill Tree Toggle */}
-          <button
-            onClick={() => setShowSkillPanel(!showSkillPanel)}
-            className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all border-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-0.5 active:translate-y-0.5
-              ${showSkillPanel ? 'bg-black text-white border-black' : 'bg-white text-black border-black hover:bg-black hover:text-white'}`}
-            title="Toggle Skill Tree"
-          >
-            <Target size={14} />
-            <span>SKILLS</span>
-          </button>
-        </div>
+  const getMasteryLabel = (m: number) => {
+    if (m === 0) return 'Not Started';
+    if (m < 0.3) return 'Struggling';
+    if (m < 0.6) return 'Developing';
+    if (m < 0.85) return 'Proficient';
+    return 'Mastered';
+  };
 
-        {/* Voice Selector and Settings (Brutalist Style) */}
-        <div className="pointer-events-auto bg-white border-2 border-black p-1.5 px-3 rounded-full flex items-center space-x-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-xs font-bold">
-          <span className="uppercase tracking-tight text-[10px] text-black/50 pr-1 border-r border-black/20">VOICE:</span>
-          
-          <button
-            onClick={() => setVoiceType('human')}
-            className={`px-3 py-1 rounded-full uppercase tracking-tighter transition-all ${voiceType === 'human' ? 'bg-black text-white' : 'bg-transparent text-black hover:bg-black/5'}`}
-          >
-            OpenRouter
-          </button>
-          
-          <button 
-            onClick={() => setVoiceType('system')}
-            className={`px-3 py-1 rounded-full uppercase tracking-tighter transition-all ${voiceType === 'system' ? 'bg-black text-white' : 'bg-transparent text-black hover:bg-black/5'}`}
-          >
-            Native
-          </button>
-          
-          <button 
-            onClick={() => setVoiceType('mute')}
-            className={`p-1.5 rounded-full transition-all ${voiceType === 'mute' ? 'bg-red-500 text-white' : 'bg-transparent text-black hover:bg-black/5'}`}
-            title="Mute Tutor Audio"
-          >
-            <VolumeX size={12} />
-          </button>
-        </div>
+  const renderSkillNode = (skill: Skill, depth: number = 0) => {
+    const mastery = skill.mastery_level || 0;
+    const isSelected = selectedSkill?.id === skill.id;
+    const hasChildren = skill.children && skill.children.length > 0;
+
+    return (
+      <div key={skill.id}>
+        <button
+          onClick={() => handleSkillSelect(skill)}
+          className={`w-full text-left px-3 py-2 flex items-center gap-2 text-xs font-bold uppercase tracking-tight border-l-2 transition-all hover:bg-black hover:text-white group
+            ${isSelected ? 'bg-black text-white border-l-black' : `border-transparent ${getMasteryColor(mastery)}`}`}
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+          title={skill.description}
+        >
+          <span className="text-base flex-shrink-0">{skill.icon}</span>
+          <span className="flex-1 truncate">{skill.name}</span>
+          <div className="flex-shrink-0 flex items-center gap-1">
+            {mastery > 0 && (
+              <div className={`w-1.5 h-1.5 rounded-full ${mastery >= 0.85 ? 'bg-green-500' : mastery >= 0.6 ? 'bg-blue-500' : mastery >= 0.3 ? 'bg-amber-500' : 'bg-red-500'}`} />
+            )}
+            {mastery >= 0.85 && <CheckCircle size={10} className="text-green-600" />}
+          </div>
+        </button>
+        {hasChildren && skill.children!.map(c => renderSkillNode(c, depth + 1))}
       </div>
+    );
+  };
 
-      {/* Skill Tree Sidebar Panel */}
+  // ==========================================================================
+  // RENDER
+  // ==========================================================================
+
+  return (
+    <div className="grid grid-cols-[auto_1fr_auto] w-screen h-screen bg-white font-sans text-black overflow-hidden">
+      {/* ============ LEFT COLUMN: Skill Tree ============ */}
       {showSkillPanel && (
-        <div className="absolute top-20 left-4 z-40 w-[320px] max-h-[calc(100vh-120px)] bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col">
+        <div className="w-[320px] max-h-screen bg-white border-r-2 border-black overflow-y-auto flex flex-col">
           {/* Header */}
-          <div className="border-b-2 border-black p-4 flex items-center justify-between bg-white sticky top-0 z-10">
+          <div className="border-b-2 border-black p-4 flex items-center justify-between sticky top-0 bg-white z-10">
             <div className="flex items-center gap-2">
               <Target size={16} className="stroke-[1.5]" />
               <span className="text-xs font-bold uppercase tracking-widest">LEARNING PATH</span>
@@ -589,7 +562,7 @@ export default function CanvasPage() {
             </button>
           </div>
 
-          {/* Recommendations Alert */}
+          {/* Recommendations */}
           {skillRecommendations.length > 0 && !isLoadingSkills && (
             <div className="border-b-2 border-black bg-amber-50 p-3">
               <div className="flex items-start gap-2">
@@ -598,16 +571,17 @@ export default function CanvasPage() {
                   <div className="text-[10px] font-bold uppercase tracking-widest text-amber-800 mb-0.5">RECOMMENDED NEXT</div>
                   <button
                     onClick={() => {
-                      const topRec = skillRecommendations[0];
-                      const skill = skillTree.find(s => s.id === topRec?.skill?.id)
-                        || skillTree.flatMap(s => s.children || []).find(c => c.id === topRec?.skill?.id);
-                      if (skill) handleSkillSelect(skill);
+                      const s = skillRecommendations[0]?.skill;
+                      if (s) {
+                        const found = skillTree.find(n => n.id === s.id) || skillTree.flatMap(n => n.children || []).find(c => c.id === s.id);
+                        if (found) handleSkillSelect(found);
+                      }
                     }}
                     className="text-xs font-bold uppercase tracking-tight text-amber-900 hover:underline text-left"
                   >
-                    {skillRecommendations[0]?.skill?.icon} {skillRecommendations[0]?.skill?.name}
+                    {skillRecommendations[0]?.icon || '📚'} {skillRecommendations[0]?.name || ''}
                     <span className="block text-[9px] font-normal normal-case text-amber-700">
-                      {skillRecommendations[0]?.reason}
+                      {skillRecommendations[0]?.reason || ''}
                     </span>
                   </button>
                 </div>
@@ -615,17 +589,17 @@ export default function CanvasPage() {
             </div>
           )}
 
-          {/* Selected Skill Context */}
+          {/* Selected skill context */}
           {selectedSkill && (
-            <div className={`border-b-2 border-black p-3 ${getMasteryBg(selectedSkill.mastery_level || 0)}`}>
+            <div className={`border-b-2 border-black p-3 ${selectedSkill.mastery_level && selectedSkill.mastery_level < 0.3 ? 'bg-red-50' : selectedSkill.mastery_level < 0.6 ? 'bg-amber-50' : selectedSkill.mastery_level < 0.85 ? 'bg-blue-50' : 'bg-green-50'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xl">{selectedSkill.icon}</span>
                   <div>
                     <div className="text-xs font-bold uppercase tracking-tighter">{selectedSkill.name}</div>
-                    <div className={`text-[9px] font-bold uppercase tracking-widest ${getMasteryColor(selectedSkill.mastery_level || 0)}`}>
-                      {getMasteryLabel(selectedSkill.mastery_level || 0)}
-                      {selectedSkill.mastery_level > 0 && ` • ${Math.round((selectedSkill.mastery_level || 0) * 100)}%`}
+                    <div className={`text-[9px] font-bold uppercase tracking-widest ${getMasteryColor(selectedSkill.mastery_level)}`}>
+                      {getMasteryLabel(selectedSkill.mastery_level)}
+                      {selectedSkill.mastery_level > 0 && ` • ${Math.round(selectedSkill.mastery_level * 100)}%`}
                     </div>
                   </div>
                 </div>
@@ -639,7 +613,7 @@ export default function CanvasPage() {
             </div>
           )}
 
-          {/* Skill Tree Scroll Area */}
+          {/* Skill list */}
           <div className="flex-1 overflow-y-auto py-2">
             {isLoadingSkills ? (
               <div className="flex items-center justify-center py-8">
@@ -660,70 +634,70 @@ export default function CanvasPage() {
         </div>
       )}
 
-      {/* Bottom Toolbar & Text Input */}
-      <div className="z-50 absolute bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-[680px]">
-        <div className="bg-white border-2 border-black p-2 px-4 rounded-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col md:flex-row items-center gap-3">
-          <div className="flex items-center space-x-2.5 pl-1 w-full md:w-auto justify-between md:justify-start">
-            <div className="flex items-center space-x-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 border-black ${isSessionActive ? 'bg-black text-white animate-pulse' : 'bg-white text-black'}`}>
-                <Brain size={16} />
-              </div>
-              <span className="font-bold text-xs uppercase tracking-tighter w-24">
-                {isSessionActive ? "NEWTON ACTIVE" : "READY"}
-              </span>
-            </div>
-            {/* Direct Replay Trigger */}
-            {rrwebEventsRef.current.length > 0 && !isSessionActive && (
-              <button 
-                onClick={saveSessionReplay}
-                className="md:hidden p-1.5 border border-black rounded-full hover:bg-black hover:text-white transition-colors"
-                title="Save Replay"
+      {/* ============ CENTER COLUMN: Canvas + Captions ============ */}
+      <div className="relative flex flex-col min-w-0 overflow-hidden">
+        {/* Top Bar */}
+        <div className="absolute top-4 left-4 right-4 z-40 flex justify-between items-center pointer-events-none">
+          <div className="pointer-events-auto flex items-center gap-2">
+            <Link
+              href="/"
+              className="flex items-center gap-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+            >
+              <ArrowLeft size={14} />
+              <span>INDEX</span>
+            </Link>
+
+            {!showSkillPanel && (
+              <button
+                onClick={() => setShowSkillPanel(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white hover:bg-black hover:text-white"
               >
-                <Database size={12} />
+                <Target size={14} />
+                SKILLS
               </button>
             )}
           </div>
 
-          {/* Socratic Text Backup Field */}
-          <form onSubmit={handleTextInputSubmit} className="flex-1 flex w-full border-2 border-black bg-white rounded-full overflow-hidden">
-            <input 
-              type="text" 
-              value={textInput} 
-              onChange={(e) => setTextInput(e.target.value)} 
-              placeholder="Type your mathematical logic here..."
-              className="flex-1 px-4 py-2 text-xs font-bold uppercase tracking-tight focus:outline-none placeholder-black/40 bg-transparent"
-              disabled={isConnecting}
-            />
-            <button 
-              type="submit" 
-              className="px-4 border-l-2 border-black bg-black text-white hover:bg-white hover:text-black transition-all flex items-center justify-center"
-              disabled={isConnecting}
-            >
-              <Send size={12} />
-            </button>
-          </form>
-          
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <button 
-              className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-5 py-2.5 rounded-full font-bold text-xs uppercase tracking-tight transition-all border-2 border-black ${isSessionActive ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-white text-black hover:bg-black hover:text-white'}`}
-              onClick={toggleSession}
-              disabled={isConnecting}
-            >
-              {isConnecting ? <Loader2 size={14} className="animate-spin" /> : (isSessionActive ? <MicOff size={14} /> : <Mic size={14} />)}
-              <span>{isConnecting ? "WAIT" : (isSessionActive ? "END SESSION" : "START SESSION")}</span>
-            </button>
-
-            {rrwebEventsRef.current.length > 0 && !isSessionActive && (
-              <button 
-                onClick={saveSessionReplay}
-                className="hidden md:flex items-center justify-center p-2.5 border-2 border-black rounded-full hover:bg-black hover:text-white transition-colors bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none translate-y-0 active:translate-y-0.5"
-                title="Save session replay to cloud database"
-              >
-                <Database size={14} />
-              </button>
-            )}
+          {/* Session status badge */}
+          <div className="pointer-events-auto flex items-center gap-2">
+            <div className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider border-2 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
+              ${isSessionActive ? 'bg-black text-white border-black' : 'bg-white text-black/50 border-black/20'}`}>
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-green-400 animate-pulse' : 'bg-black/20'}`} />
+                {isSessionActive ? 'SESSION ACTIVE' : 'READY'}
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Tldraw Canvas */}
+        <div className="flex-1 relative">
+          <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" />
+
+          {/* Captions Overlay */}
+          <CaptionsBar
+            text={captionsText}
+            isVisible={captionsVisible}
+            isTyping={captionsTyping}
+            voiceType={voiceType}
+            onAnimationComplete={() => {
+              if (!isSessionActive) setCaptionsTyping(false);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ============ RIGHT COLUMN: Chat Sidebar ============ */}
+      <div className="w-[420px] max-h-screen">
+        <ChatSidebar
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isProcessing={isConnecting}
+          isSessionActive={isSessionActive}
+          onToggleSession={toggleSession}
+          voiceType={voiceType}
+          onVoiceTypeChange={setVoiceType}
+        />
       </div>
     </div>
   );

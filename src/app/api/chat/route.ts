@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { createClient } from '@supabase/supabase-js';
+import { parseCanvas } from '@/utils/canvas-parser';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -18,15 +19,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Summarize the shapes on the canvas for the LLM
-    let canvasContext = "The canvas is empty.";
-    if (shapes && shapes.length > 0) {
-       const textShapes = shapes.filter((s: any) => s.type === 'text');
-       if (textShapes.length > 0) {
-           canvasContext = `The user has written the following on the canvas: ${textShapes.map((s:any) => s.props.text).join(' ')}`;
-       } else {
-           canvasContext = `The user has drawn ${shapes.length} shapes on the canvas.`;
-       }
-    }
+    const canvasContext = parseCanvas(shapes);
 
     // 2. Query Groq
     const completion = await groq.chat.completions.create({

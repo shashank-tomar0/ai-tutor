@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSerif.variable} ${caveat.variable}`}>
+    <html lang="en" className={`${inter.variable} ${dmSerif.variable} ${caveat.variable}`} suppressHydrationWarning>
       <body className="antialiased bg-white text-black font-sans selection:bg-black selection:text-white">
         {children}
       </body>

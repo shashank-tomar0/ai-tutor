@@ -15,6 +15,7 @@ declare module 'lucide-react' {
   export const Loader2: Icon;
   export const ArrowLeft: Icon;
   export const Send: Icon;
+  export const Volume1: Icon;
   export const Volume2: Icon;
   export const VolumeX: Icon;
   export const Database: Icon;
