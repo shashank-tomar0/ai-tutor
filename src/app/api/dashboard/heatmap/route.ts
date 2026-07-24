@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from '@/utils/supabase';
 
 export async function GET() {
   try {
@@ -55,11 +51,7 @@ export async function GET() {
       return { concept, score };
     }).filter(item => item.score > 0).slice(0, 10);
 
-    return NextResponse.json(heatmapData.length > 0 ? heatmapData : [
-      { concept: 'Arithmetic', score: 85 },
-      { concept: 'Algebra', score: 70 },
-      { concept: 'Geometry', score: 60 }
-    ]);
+    return NextResponse.json(heatmapData.length > 0 ? heatmapData : []);
   } catch (error) {
     console.error('Heatmap API error:', error);
     return NextResponse.json({ error: 'Failed to fetch heatmap data' }, { status: 500 });

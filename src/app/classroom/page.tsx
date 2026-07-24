@@ -12,6 +12,7 @@ import ChatSidebar, { ChatMessage } from '@/components/ChatSidebar';
 import CaptionsBar from '@/components/CaptionsBar';
 import SkillTreeSidebar from '@/components/SkillTreeSidebar';
 import HandwritingModal from '@/components/HandwritingModal';
+import SessionSummaryModal from '@/components/SessionSummaryModal';
 import { SkillWithProgress } from '@/utils/skill-engine';
 
 export default function CanvasPage() {
@@ -23,6 +24,9 @@ export default function CanvasPage() {
   const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
   const [isHandwritingModalOpen, setIsHandwritingModalOpen] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState<SkillWithProgress | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
+  const [sessionStats, setSessionStats] = useState({ skillName: "", durationMinutes: 0, strugglesCount: 0, masteryGainPct: 0 });
+  const sessionStartTimeRef = useRef<number | null>(null);
   const router = useRouter();
 
   // Chat messages
@@ -222,28 +226,29 @@ export default function CanvasPage() {
         if (itemType === 'arrow') {
           // Connecting Vector Arrow between shapes
           const fromIdx = itemObj?.fromIndex ?? Math.max(0, i - 1);
-          const toIdx = itemObj?.toIndex ?? i + 1;
+          const toIdx   = itemObj?.toIndex   ?? i + 1;
           const fromPos = createdShapePos[fromIdx] || { x: startX + 100, y: currentY - 50, w: 200, h: 60 };
-          const toPos = createdShapePos[toIdx] || { x: startX + 100, y: currentY + 40, w: 200, h: 60 };
+          const toPos   = createdShapePos[toIdx]   || { x: startX + 100, y: currentY + 40, w: 200, h: 60 };
 
           const startPtX = fromPos.x + fromPos.w / 2;
           const startPtY = fromPos.y + fromPos.h;
-          const endPtX = toPos.x + toPos.w / 2;
-          const endPtY = toPos.y;
+          const endPtX   = toPos.x  + toPos.w  / 2;
+          const endPtY   = toPos.y;
 
-          shapesToCreate.push({
-            type: 'arrow',
-            x: startPtX,
-            y: startPtY,
-            props: {
-              start: { x: 0, y: 0 },
-              end: { x: endPtX - startPtX, y: Math.max(30, endPtY - startPtY) },
-              color: color === 'black' ? 'violet' : color,
-              size: 'm',
-              arrowheadEnd: 'arrow',
-              richText: itemObj?.label ? toRichText(itemObj.label) : undefined,
-            },
-          });
+          const arrowLabel = itemObj?.label || itemObj?.text || '';
+
+          // Build props without richText first, only add it when there is a label
+          const arrowProps: any = {
+            start:         { x: 0, y: 0 },
+            end:           { x: endPtX - startPtX, y: Math.max(30, endPtY - startPtY) },
+            color:         color === 'black' ? 'violet' : color,
+            size:          'm',
+            arrowheadStart: 'none',
+            arrowheadEnd:  'arrow',
+          };
+          if (arrowLabel) arrowProps.richText = toRichText(arrowLabel);
+
+          shapesToCreate.push({ type: 'arrow', x: startPtX, y: startPtY, props: arrowProps });
           currentY += 40;
           createdShapePos.push({ x: startPtX, y: startPtY, w: 0, h: 40 });
         } else if (itemType === 'circle' || itemType === 'ellipse') {
@@ -377,7 +382,20 @@ export default function CanvasPage() {
         }
       });
 
-      (editor as any).createShapes(shapesToCreate);
+      // Deep-strip undefined values so tldraw never sees an undefined prop
+      const sanitize = (obj: any): any => {
+        if (Array.isArray(obj)) return obj.map(sanitize);
+        if (obj !== null && typeof obj === 'object') {
+          return Object.fromEntries(
+            Object.entries(obj)
+              .filter(([, v]) => v !== undefined)
+              .map(([k, v]) => [k, sanitize(v)])
+          );
+        }
+        return obj;
+      };
+
+      (editor as any).createShapes(shapesToCreate.map(sanitize));
     } catch (e) {
       console.warn('Could not write PenEcho canvas shapes:', e);
     }
@@ -643,45 +661,8 @@ export default function CanvasPage() {
     sendToAI(text);
   }, [sendToAI]);
 
-  // Handle explicit Handwriting Modal submission
-  const handleSolveHandwriting = useCallback(async (imageBase64: string) => {
-    if (isProcessingRef.current) return;
-    isProcessingRef.current = true;
-    setIsConnecting(true);
 
-    try {
-      addMessage('user', "✏️ [Submitted Handwriting from PenEcho Scratchpad...]");
 
-      const formData = new FormData();
-      formData.append('text', "The student wrote math, code, or equations by hand on the PenEcho handwriting scratchpad. Perform high-accuracy OCR on the handwritten text, equations, or diagrams. Explain what you recognize in response_text (e.g. 'I read your handwritten equation: 2x + 5 = 15'), then solve it step-by-step using PenEcho visual shape cards!");
-      formData.append('image', imageBase64);
-      const shapes = editor ? editor.getCurrentPageShapes() : [];
-      formData.append('shapes', JSON.stringify(shapes));
-      if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
-      if (user?.id) formData.append('user_id', user.id);
-      if (user?.email) formData.append('student_name', user.email.split('@')[0]);
-
-      const res = await fetch("/api/chat-audio", { method: "POST", body: formData });
-      const data = await res.json();
-
-      if (data.type === "ai_response") {
-        const aiText = data.text || "I read your handwriting! Here's the step-by-step solution.";
-        addMessage('ai', aiText);
-        if (data.canvas_content && Array.isArray(data.canvas_content) && data.canvas_content.length > 0) {
-          writeToCanvas(data.canvas_content);
-        }
-        speakText(aiText);
-      } else {
-        isProcessingRef.current = false;
-        setIsConnecting(false);
-      }
-    } catch (err) {
-      console.error("Handwriting OCR request failed:", err);
-      addMessage('ai', "Sorry, I had trouble reading the canvas image. Please make sure your drawing is clear and try again.");
-      isProcessingRef.current = false;
-      setIsConnecting(false);
-    }
-  }, [editor, selectedSkill, user, addMessage, writeToCanvas, speakText]);
 
   // Handle audio blob from ChatSidebar mic button
   const handleSendAudio = useCallback(async (blob: Blob) => {
@@ -838,9 +819,23 @@ export default function CanvasPage() {
       setIsSessionActive(false);
       if (synthesisRef.current) synthesisRef.current.cancel();
       setCaptionsVisible(false);
-      saveSessionReplay();
+
+      // Compute session stats for summary modal
+      const startTime = sessionStartTimeRef.current;
+      const durationMinutes = startTime ? Math.round((Date.now() - startTime) / 60000) : 0;
+      const strugglesCount = messages.filter(m => m.role === 'user').length;
+      const masteryGainPct = Math.min(Math.floor(strugglesCount * 3 + 5), 100);
+
+      setSessionStats({
+        skillName: selectedSkill?.name || 'General Socratic',
+        durationMinutes,
+        strugglesCount,
+        masteryGainPct,
+      });
+      setShowSummary(true);
     } else {
       setIsSessionActive(true);
+      sessionStartTimeRef.current = Date.now();
       rrwebEventsRef.current = [];
       const topicMention = selectedSkill ? ` focus on ${selectedSkill.name}` : '';
       const greeting = `Hello! I'm Newton. I can see everything on your canvas${topicMention}. What problem are we tackling today?`;
@@ -848,6 +843,11 @@ export default function CanvasPage() {
       speakText(greeting);
     }
   };
+
+  const handleConfirmEnd = useCallback(() => {
+    setShowSummary(false);
+    saveSessionReplay();
+  }, []);
 
   // ==========================================================================
   // SAVE REPLAY
@@ -1024,7 +1024,19 @@ export default function CanvasPage() {
       <HandwritingModal
         isOpen={isHandwritingModalOpen}
         onClose={() => setIsHandwritingModalOpen(false)}
-        onSolveHandwriting={handleSolveHandwriting}
+        selectedSkill={selectedSkill}
+        userId={user?.id}
+        studentName={user?.email?.split('@')[0]}
+      />
+      {/* ============ SESSION SUMMARY MODAL ============ */}
+      <SessionSummaryModal
+        isOpen={showSummary}
+        onClose={() => setShowSummary(false)}
+        onConfirmEnd={handleConfirmEnd}
+        skillName={sessionStats.skillName}
+        durationMinutes={sessionStats.durationMinutes}
+        strugglesCount={sessionStats.strugglesCount}
+        masteryGainPct={sessionStats.masteryGainPct}
       />
     </div>
   );

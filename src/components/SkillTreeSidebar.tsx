@@ -12,7 +12,8 @@ import {
   Target,
   X,
   RotateCcw,
-  BookOpen
+  BookOpen,
+  Shield
 } from 'lucide-react';
 import {
   SkillWithProgress,
@@ -52,6 +53,30 @@ export default function SkillTreeSidebar({
         getSkillTreeWithProgress(userId),
         getRecommendedSkill(userId),
       ]);
+
+      // Flatten tree to flat list for prerequisite checking
+      const allNodes: SkillWithProgress[] = [];
+      const collectNodes = (nodes: SkillWithProgress[]) => {
+        for (const n of nodes) {
+          allNodes.push(n);
+          if (n.children) collectNodes(n.children);
+        }
+      };
+      collectNodes(treeData);
+
+      // Build ID lookup map
+      const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+
+      // Mark prerequisites: a skill is unlocked if its parent has mastery >= 0.6
+      for (const node of allNodes) {
+        if (node.parent_id) {
+          const parent = nodeMap.get(node.parent_id);
+          node.prerequisites_met = parent ? parent.mastery_level >= 0.6 : false;
+        } else {
+          node.prerequisites_met = true;
+        }
+      }
+
       setSkills(treeData);
       setRecommendation(recData);
 
@@ -92,16 +117,24 @@ export default function SkillTreeSidebar({
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = selectedSkill?.id === node.id;
     const masteryPct = Math.round((node.mastery_level || 0) * 100);
+    const isLocked = node.prerequisites_met === false;
 
     return (
       <div key={node.id} className="flex flex-col">
         <div
-          onClick={() => onSelectSkill(isSelected ? null : node)}
+          onClick={() => {
+            if (isLocked) return;
+            onSelectSkill(isSelected ? null : node);
+          }}
+          title={isLocked ? 'Prerequisites not met' : undefined}
           style={{ paddingLeft: `${depth * 16 + 12}px` }}
-          className={`flex items-center justify-between py-2 pr-3 cursor-pointer border-l-2 transition-all group ${
-            isSelected
-              ? 'bg-black text-white border-black font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-              : 'hover:bg-black/5 border-transparent text-black'
+          className={`flex items-center justify-between py-2 pr-3 border-l-2 transition-all group ${
+            isLocked
+              ? 'opacity-50 cursor-not-allowed border-transparent text-black'
+              : 'cursor-pointer ' +
+                (isSelected
+                  ? 'bg-black text-white border-black font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                  : 'hover:bg-black/5 border-transparent text-black')
           }`}
         >
           {/* Left: Icon + Expand Toggle + Name */}
@@ -121,10 +154,17 @@ export default function SkillTreeSidebar({
               <div className="w-3.5" />
             )}
 
-            <span className="text-sm flex-shrink-0">{node.icon || '📚'}</span>
+            <span className="text-sm flex-shrink-0">
+              {isLocked ? <Shield size={14} /> : (node.icon || '📚')}
+            </span>
             <span className="text-[11px] uppercase tracking-tight truncate font-bold">
               {node.name}
             </span>
+            {isLocked && (
+              <span className="ml-2 text-[8px] font-bold uppercase tracking-widest text-red-600 bg-red-50 px-1.5 py-0.5 border border-red-200 rounded">
+                LOCKED
+              </span>
+            )}
           </div>
 
           {/* Right: Mastery Badge */}
@@ -255,8 +295,14 @@ export default function SkillTreeSidebar({
         {/* ==================== TREE LIST AREA ==================== */}
         <div className="flex-1 overflow-y-auto p-2">
           {loading ? (
-            <div className="p-8 text-center text-xs font-bold uppercase tracking-widest text-black/40">
-              BUILDING SKILL GRAPH...
+            <div className="space-y-2 px-2">
+              {[3/4, 1/2, 2/3, 3/4, 1/2, 2/3].map((width, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-6 h-6 rounded-full bg-gray-200 animate-pulse" />
+                  <div className={`h-4 bg-gray-200 animate-pulse rounded flex-1 ${width === 3/4 ? 'max-w-[75%]' : width === 1/2 ? 'max-w-[50%]' : 'max-w-[66%]'}`} />
+                  <div className="w-12 h-5 bg-gray-200 animate-pulse rounded-full" />
+                </div>
+              ))}
             </div>
           ) : filteredSkills.length === 0 ? (
             <div className="p-8 text-center text-xs font-bold uppercase tracking-widest text-black/40">

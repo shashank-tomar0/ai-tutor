@@ -1,0 +1,799 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "excalidraw-cli",
+  "elements": [
+    {
+      "type": "text",
+      "id": "t0",
+      "x": 60,
+      "y": 15,
+      "text": "PROJECT NEWTON",
+      "fontSize": 22,
+      "strokeColor": "#1e1e1e",
+      "fontFamily": 1
+    },
+    {
+      "type": "text",
+      "id": "t1",
+      "x": 60,
+      "y": 42,
+      "text": "Cognitive Tutoring Interaction Flow",
+      "fontSize": 16,
+      "strokeColor": "#666666",
+      "fontFamily": 1
+    },
+    {
+      "type": "line",
+      "id": "sep0",
+      "x": 40,
+      "y": 55,
+      "width": 520,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          520,
+          0
+        ]
+      ],
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step1",
+      "x": 140,
+      "y": 80,
+      "width": 320,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#a5d8ff",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step1_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step1_label",
+      "x": 150,
+      "y": 90,
+      "width": 300,
+      "height": 35,
+      "text": "Student enters classroom",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step1",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "arrow",
+      "id": "a1",
+      "x": 300,
+      "y": 135,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step2",
+      "x": 140,
+      "y": 165,
+      "width": 320,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#a5d8ff",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step2_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step2_label",
+      "x": 150,
+      "y": 175,
+      "width": 300,
+      "height": 35,
+      "text": "Draws on canvas / types / speaks",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step2",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "arrow",
+      "id": "a2",
+      "x": 300,
+      "y": 220,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step3",
+      "x": 140,
+      "y": 250,
+      "width": 320,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#d0bfff",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step3_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step3_label",
+      "x": 150,
+      "y": 260,
+      "width": 300,
+      "height": 35,
+      "text": "API: Canvas parsed + sent to Groq",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step3",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "arrow",
+      "id": "a3",
+      "x": 300,
+      "y": 305,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step4",
+      "x": 100,
+      "y": 335,
+      "width": 400,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#fff3bf",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step4_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step4_label",
+      "x": 110,
+      "y": 345,
+      "width": 380,
+      "height": 35,
+      "text": "Socratic Engine: Groq Llama 3.3-70B",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step4",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "arrow",
+      "id": "a4",
+      "x": 300,
+      "y": 390,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "diamond",
+      "id": "dec1",
+      "x": 180,
+      "y": 430,
+      "width": 240,
+      "height": 100,
+      "backgroundColor": "#ffd8a8",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "dec1_label",
+          "type": "text"
+        }
+      ],
+      "roundness": {
+        "type": 3
+      },
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "dec1_label",
+      "x": 190,
+      "y": 440,
+      "width": 220,
+      "height": 80,
+      "text": "Is student struggling?",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "dec1",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "text",
+      "id": "dec1yes",
+      "x": 120,
+      "y": 470,
+      "text": "YES",
+      "fontSize": 14,
+      "strokeColor": "#ef4444",
+      "fontFamily": 1
+    },
+    {
+      "type": "text",
+      "id": "dec1no",
+      "x": 440,
+      "y": 470,
+      "text": "NO",
+      "fontSize": 14,
+      "strokeColor": "#22c55e",
+      "fontFamily": 1
+    },
+    {
+      "type": "arrow",
+      "id": "a5yes",
+      "x": 180,
+      "y": 480,
+      "width": -40,
+      "height": 40,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -40,
+          0
+        ],
+        [
+          -40,
+          40
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#ef4444",
+      "strokeWidth": 2,
+      "roughness": 2
+    },
+    {
+      "type": "arrow",
+      "id": "a5no",
+      "x": 420,
+      "y": 480,
+      "width": 40,
+      "height": 40,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          40,
+          0
+        ],
+        [
+          40,
+          40
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#22c55e",
+      "strokeWidth": 2,
+      "roughness": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step5a",
+      "x": 50,
+      "y": 540,
+      "width": 260,
+      "height": 70,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#ffc9c9",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step5a_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step5a_label",
+      "x": 60,
+      "y": 550,
+      "width": 240,
+      "height": 50,
+      "text": "Socratic questioning",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step5a",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "text",
+      "id": "t5a",
+      "x": 70,
+      "y": 625,
+      "text": "Tutor asks guiding questions",
+      "fontSize": 11,
+      "strokeColor": "#666666",
+      "fontFamily": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "step5b",
+      "x": 290,
+      "y": 540,
+      "width": 260,
+      "height": 70,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#b2f2bb",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step5b_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step5b_label",
+      "x": 300,
+      "y": 550,
+      "width": 240,
+      "height": 50,
+      "text": "Teach concept clearly",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step5b",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "text",
+      "id": "t5b",
+      "x": 310,
+      "y": 625,
+      "text": "AI explains with analogies + canvas shapes",
+      "fontSize": 11,
+      "strokeColor": "#666666",
+      "fontFamily": 1
+    },
+    {
+      "type": "arrow",
+      "id": "a6a",
+      "x": 180,
+      "y": 610,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "arrow",
+      "id": "a6b",
+      "x": 420,
+      "y": 610,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step6a",
+      "x": 50,
+      "y": 660,
+      "width": 260,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#fff3bf",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step6a_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step6a_label",
+      "x": 60,
+      "y": 670,
+      "width": 240,
+      "height": 35,
+      "text": "Log intervention to DB",
+      "fontSize": 14,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step6a",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "rectangle",
+      "id": "step6b",
+      "x": 290,
+      "y": 660,
+      "width": 260,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#fff3bf",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step6b_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step6b_label",
+      "x": 300,
+      "y": 670,
+      "width": 240,
+      "height": 35,
+      "text": "Push to canvas + TTS",
+      "fontSize": 14,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step6b",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "arrow",
+      "id": "a7",
+      "x": 300,
+      "y": 715,
+      "width": 0,
+      "height": 30,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "roughness": 2
+    },
+    {
+      "type": "diamond",
+      "id": "dec2",
+      "x": 180,
+      "y": 745,
+      "width": 240,
+      "height": 90,
+      "backgroundColor": "#d0bfff",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "dec2_label",
+          "type": "text"
+        }
+      ],
+      "roundness": {
+        "type": 3
+      },
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "dec2_label",
+      "x": 190,
+      "y": 755,
+      "width": 220,
+      "height": 70,
+      "text": "Session ended?",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "dec2",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "text",
+      "id": "dec2no",
+      "x": 120,
+      "y": 780,
+      "text": "NO",
+      "fontSize": 14,
+      "strokeColor": "#666666",
+      "fontFamily": 1
+    },
+    {
+      "type": "text",
+      "id": "dec2yes",
+      "x": 440,
+      "y": 780,
+      "text": "YES",
+      "fontSize": 14,
+      "strokeColor": "#22c55e",
+      "fontFamily": 1
+    },
+    {
+      "type": "arrow",
+      "id": "a8loop",
+      "x": 180,
+      "y": 790,
+      "width": -90,
+      "height": -430,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -90,
+          0
+        ],
+        [
+          -90,
+          -430
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 2,
+      "roughness": 2
+    },
+    {
+      "type": "arrow",
+      "id": "a8end",
+      "x": 420,
+      "y": 790,
+      "width": 50,
+      "height": 40,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          50,
+          0
+        ],
+        [
+          50,
+          40
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#22c55e",
+      "strokeWidth": 2,
+      "roughness": 2
+    },
+    {
+      "type": "rectangle",
+      "id": "step7",
+      "x": 370,
+      "y": 850,
+      "width": 220,
+      "height": 55,
+      "roundness": {
+        "type": 3
+      },
+      "backgroundColor": "#b2f2bb",
+      "fillStyle": "solid",
+      "strokeColor": "#1e1e1e",
+      "boundElements": [
+        {
+          "id": "step7_label",
+          "type": "text"
+        }
+      ],
+      "roughness": 2
+    },
+    {
+      "type": "text",
+      "id": "step7_label",
+      "x": 380,
+      "y": 860,
+      "width": 200,
+      "height": 35,
+      "text": "Save replay + update skills",
+      "fontSize": 14,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step7",
+      "strokeColor": "#1e1e1e"
+    },
+    {
+      "type": "text",
+      "id": "looplabel",
+      "x": 35,
+      "y": 370,
+      "text": "Loop continues until session ends",
+      "fontSize": 11,
+      "strokeColor": "#666666",
+      "fontFamily": 1
+    },
+    {
+      "type": "line",
+      "id": "sep1",
+      "x": 40,
+      "y": 925,
+      "width": 520,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          520,
+          0
+        ]
+      ],
+      "strokeColor": "#1e1e1e",
+      "strokeWidth": 1
+    },
+    {
+      "type": "text",
+      "id": "tfooter",
+      "x": 100,
+      "y": 940,
+      "text": "Built with Next.js 16 . Tldraw . Groq . Supabase . rrweb",
+      "fontSize": 11,
+      "strokeColor": "#999999",
+      "fontFamily": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  },
+  "files": {}
+}

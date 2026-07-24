@@ -148,9 +148,12 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white text-black flex flex-col items-center justify-center font-sans">
-        <Loader2 className="animate-spin mb-4" size={32} />
-        <span className="font-bold uppercase tracking-widest text-xs">LOADING MASTER INTERFACE...</span>
+      <div className="min-h-screen bg-white p-8 font-sans">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="rounded-lg bg-gray-200 animate-pulse h-96" />
+          <div className="rounded-lg bg-gray-200 animate-pulse h-96" />
+          <div className="rounded-lg bg-gray-200 animate-pulse h-96" />
+        </div>
       </div>
     );
   }

@@ -15,6 +15,8 @@ export default function ReplayViewerPage() {
   const [replayData, setReplayData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
 
   useEffect(() => {
     async function loadReplay() {
@@ -33,6 +35,7 @@ export default function ReplayViewerPage() {
         }
 
         setReplayData(data);
+        setFeedback(data.feedback || '');
         setLoading(false);
       } catch (err) {
         setError('Failed to load replay');
@@ -130,6 +133,38 @@ export default function ReplayViewerPage() {
 
             <div className="border-4 border-black p-2 bg-gray-100 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
               <div ref={playerContainerRef} className="w-full min-h-[600px] flex items-center justify-center bg-white border-2 border-black" />
+            </div>
+
+            <div className="border-2 border-black p-6 bg-white">
+              <h2 className="text-lg font-black uppercase tracking-wider mb-4">TEACHER FEEDBACK</h2>
+              <textarea
+                className="w-full min-h-[120px] border-2 border-black p-4 text-sm font-medium uppercase tracking-wider resize-y focus:outline-none focus:ring-2 focus:ring-black"
+                placeholder="ENTER FEEDBACK..."
+                value={feedback}
+                onChange={(e) => { setFeedback(e.target.value); setFeedbackSaved(false); }}
+              />
+              <div className="mt-4 flex items-center gap-4">
+                <button
+                  onClick={async () => {
+                    try {
+                      const { error: saveErr } = await supabase
+                        .from('session_replays')
+                        .update({ feedback })
+                        .eq('id', replayId);
+                      if (saveErr) throw saveErr;
+                      setFeedbackSaved(true);
+                    } catch (err) {
+                      alert('Failed to save feedback');
+                    }
+                  }}
+                  className="border-2 border-black px-6 py-3 text-xs font-bold uppercase tracking-widest bg-white hover:bg-black hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  SAVE FEEDBACK
+                </button>
+                {feedbackSaved && (
+                  <span className="text-sm font-bold text-green-700 uppercase tracking-wider">FEEDBACK SAVED ✓</span>
+                )}
+              </div>
             </div>
           </>
         )}

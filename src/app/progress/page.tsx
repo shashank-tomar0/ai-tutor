@@ -33,10 +33,10 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [userSkills, setUserSkills] = useState<any[]>([]);
-  const [streakDays, setStreakDays] = useState(7);
-  const [bestStreak, setBestStreak] = useState(14);
+  const [streakDays, setStreakDays] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [weeklyGoal, setWeeklyGoal] = useState(5);
-  const [weeklyCompleted, setWeeklyCompleted] = useState(3);
+  const [weeklyCompleted, setWeeklyCompleted] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -61,7 +61,25 @@ export default function ProgressPage() {
           const recentCompleted = progressData.filter(
             (us: any) => us.mastery_level >= 0.6 && new Date(us.last_practiced) >= oneWeekAgo
           ).length;
-          setWeeklyCompleted(Math.max(1, recentCompleted));
+          setWeeklyCompleted(Math.max(0, recentCompleted));
+
+          // Compute practice streak from real data
+          const dateSet = new Set<string>();
+          progressData.forEach((us: any) => {
+            if (us.last_practiced) {
+              const d = new Date(us.last_practiced);
+              dateSet.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+            }
+          });
+          const sortedDates = Array.from(dateSet).sort().reverse();
+          let streak = 0;
+          const checkDate = new Date(now);
+          while (sortedDates.includes(`${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`)) {
+            streak++;
+            checkDate.setDate(checkDate.getDate() - 1);
+          }
+          setStreakDays(streak);
+          setBestStreak(prev => Math.max(prev, streak));
         }
       } catch (err) {
         console.error('Error fetching progress:', err);
@@ -130,11 +148,26 @@ export default function ProgressPage() {
     return { week: `W${i + 1}`, Mathematics: avgMath, ComputerScience: avgCS };
   });
 
-  const recommendedQuests = userSkills.filter((us: any) => {
-    if (!us.last_practiced) return true;
-    const daysSince = (new Date().getTime() - new Date(us.last_practiced).getTime()) / (1000 * 3600 * 24);
-    return daysSince > 2 || (us.mastery_level || 0) < 0.7;
-  }).slice(0, 3);
+  const recommendedQuests = userSkills
+    .filter((us: any) => {
+      // Recommend skills that haven't been practiced in 3+ days OR have mastery below 70%
+      if (!us.last_practiced) return true;
+      const daysSince = (new Date().getTime() - new Date(us.last_practiced).getTime()) / (1000 * 3600 * 24);
+      return daysSince > 3 || (us.mastery_level || 0) < 0.7;
+    })
+    .sort((a: any, b: any) => {
+      // Prioritize: never practiced > lower mastery > older practice date
+      const aNever = !a.last_practiced ? 1 : 0;
+      const bNever = !b.last_practiced ? 1 : 0;
+      if (aNever !== bNever) return bNever - aNever;
+      const aMastery = a.mastery_level || 0;
+      const bMastery = b.mastery_level || 0;
+      if (aMastery !== bMastery) return aMastery - bMastery;
+      const aDate = a.last_practiced ? new Date(a.last_practiced).getTime() : 0;
+      const bDate = b.last_practiced ? new Date(b.last_practiced).getTime() : 0;
+      return aDate - bDate;
+    })
+    .slice(0, 3);
 
   const badges = [
     { id: 'b1', name: 'First Spark', icon: '🔥', desc: 'Completed first tutoring session', unlocked: true },
