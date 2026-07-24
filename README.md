@@ -94,7 +94,7 @@ Newton was designed from day one to solve all four problems -- by combining voic
 > *(Open with [excalidraw.com](https://excalidraw.com) or the VS Code Excalidraw extension)*
 
 <p align="center">
-  <img src="public/newton-architecture.svg" alt="Newton System Architecture Diagram" width="100%" />
+  <img src="newton-architecture.svg" alt="Newton System Architecture Diagram" width="100%" />
 </p>
 
 ### Architecture Decisions
