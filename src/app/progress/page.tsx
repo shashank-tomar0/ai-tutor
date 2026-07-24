@@ -14,7 +14,8 @@ import {
   Award,
   Sparkles,
   TrendingUp,
-  CheckCircle2
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import {
   LineChart,
@@ -36,7 +37,6 @@ export default function ProgressPage() {
   const [bestStreak, setBestStreak] = useState(14);
   const [weeklyGoal, setWeeklyGoal] = useState(5);
   const [weeklyCompleted, setWeeklyCompleted] = useState(3);
-  const [subjectFilter, setSubjectFilter] = useState('all');
   const router = useRouter();
 
   useEffect(() => {
@@ -49,7 +49,6 @@ export default function ProgressPage() {
       setUser(session.user);
 
       try {
-        // Fetch user skill progress with skill details
         const { data: progressData } = await supabase
           .from('user_skills')
           .select('*, skills(name, subject, difficulty, icon)')
@@ -57,7 +56,6 @@ export default function ProgressPage() {
 
         if (progressData) {
           setUserSkills(progressData);
-          // Calculate completed skills this week
           const now = new Date();
           const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
           const recentCompleted = progressData.filter(
@@ -73,6 +71,13 @@ export default function ProgressPage() {
     }
     loadData();
   }, [router]);
+
+  const handlePracticeNow = (skillName: string) => {
+    if (skillName) {
+      localStorage.setItem('selected_skill', skillName);
+      router.push('/classroom');
+    }
+  };
 
   if (loading) {
     return (
@@ -99,12 +104,11 @@ export default function ProgressPage() {
     avgMastery: Math.round(subjectGrouped[subj].totalMastery / Math.max(1, subjectGrouped[subj].count)),
   }));
 
-  const timelineData = [
-    { week: 'W1', Mathematics: 20, ComputerScience: 15 },
-    { week: 'W2', Mathematics: 45, ComputerScience: 35 },
-    { week: 'W3', Mathematics: 60, ComputerScience: 50 },
-    { week: 'W4', Mathematics: 78, ComputerScience: 65 },
-  ];
+  const recommendedQuests = userSkills.filter((us: any) => {
+    if (!us.last_practiced) return true;
+    const daysSince = (new Date().getTime() - new Date(us.last_practiced).getTime()) / (1000 * 3600 * 24);
+    return daysSince > 2 || (us.mastery_level || 0) < 0.7;
+  }).slice(0, 3);
 
   const badges = [
     { id: 'b1', name: 'First Spark', icon: '🔥', desc: 'Completed first tutoring session', unlocked: true },
@@ -118,7 +122,6 @@ export default function ProgressPage() {
     <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white flex flex-col">
       <div className="w-full h-[1px] bg-black"></div>
 
-      {/* Header */}
       <header className="px-8 py-6 flex justify-between items-center border-b border-black">
         <Link href="/classroom" className="text-sm font-bold tracking-tightest uppercase hover:underline flex items-center gap-2">
           <ArrowLeft size={14} />
@@ -133,12 +136,9 @@ export default function ProgressPage() {
         </div>
       </header>
 
-      {/* Main Grid */}
       <div className="p-8 max-w-7xl mx-auto w-full space-y-8">
         
-        {/* ================= SECTION A: STREAKS & GOALS ================= */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Streak Card */}
           <div className="border-2 border-black p-6 bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
             <div className="flex justify-between items-start">
               <div>
@@ -147,15 +147,12 @@ export default function ProgressPage() {
               </div>
               <Flame size={28} className="text-orange-500 fill-orange-500 animate-pulse" />
             </div>
-
             <div className="my-6">
               <div className="text-6xl font-extrabold tracking-tighter">{streakDays} DAYS</div>
               <p className="text-xs font-bold uppercase tracking-wider text-black/60 mt-1">
                 BEST STREAK: {bestStreak} DAYS
               </p>
             </div>
-
-            {/* Days of week indicators */}
             <div className="flex justify-between border-t border-black/10 pt-4">
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1">
@@ -170,7 +167,6 @@ export default function ProgressPage() {
             </div>
           </div>
 
-          {/* Weekly Goal Card */}
           <div className="border-2 border-black p-6 bg-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex flex-col justify-between">
             <div className="flex justify-between items-start">
               <div>
@@ -225,6 +221,51 @@ export default function ProgressPage() {
               {badges.filter(b => b.unlocked).length} OF {badges.length} UNLOCKED
             </span>
           </div>
+        </div>
+
+        {/* ================= SECTION A.5: DAILY QUESTS & SPACED REPETITION ================= */}
+        <div className="border-4 border-black p-8 bg-[#fdf3c7] shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+          <div className="flex items-center gap-3 mb-6">
+            <Target className="text-black" size={32} />
+            <h2 className="text-2xl font-black uppercase tracking-widest">DAILY PRACTICE QUESTS & SPACED REPETITION</h2>
+          </div>
+          
+          {recommendedQuests.length === 0 ? (
+            <div className="text-center py-8 text-black/60 font-bold uppercase tracking-widest text-sm border-2 border-dashed border-black">
+              YOU'RE ALL CAUGHT UP! NO SKILLS NEED URGENT REVIEW.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {recommendedQuests.map((quest: any) => {
+                const pct = Math.round((quest.mastery_level || 0) * 100);
+                return (
+                  <div key={quest.id} className="border-4 border-black bg-white flex flex-col justify-between p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-black/50 mb-2">
+                        {quest.skills?.subject || 'STEM'}
+                      </div>
+                      <div className="text-lg font-black uppercase tracking-tight mb-4 leading-tight">
+                        {quest.skills?.name || 'General Skill'}
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest mb-1">
+                        <span>MASTERY</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 h-2 border border-black mb-6 overflow-hidden">
+                        <div className="bg-black h-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handlePracticeNow(quest.skills?.name)}
+                      className="w-full border-2 border-black bg-black text-white px-4 py-3 text-xs font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all"
+                    >
+                      PRACTICE NOW →
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ================= SECTION B: MASTERY TIMELINE & SUBJECT BREAKDOWN ================= */}

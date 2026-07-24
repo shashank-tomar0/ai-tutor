@@ -41,4 +41,6 @@ declare module 'lucide-react' {
   export const Clock: Icon;
   export const X: Icon;
   export const RotateCcw: Icon;
+  export const Pause: Icon;
+  export const Zap: Icon;
 }
