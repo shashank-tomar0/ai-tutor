@@ -583,6 +583,7 @@ export default function CanvasPage() {
             onVoiceTypeChange={setVoiceType}
             onClearChat={() => setMessages([])}
             onClearCanvas={clearCanvas}
+            onTestVoice={() => speakText("Hello! Audio is working. I am Newton, your Socratic AI tutor.")}
           />
         </div>
       </div>

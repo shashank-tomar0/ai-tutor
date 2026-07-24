@@ -33,6 +33,7 @@ export interface ChatSidebarProps {
   onVoiceTypeChange: (type: 'human' | 'system' | 'mute') => void;
   onClearChat?: () => void;
   onClearCanvas?: () => void;
+  onTestVoice?: () => void;
 }
 
 // ============================================================================
@@ -58,6 +59,7 @@ export default function ChatSidebar({
   onVoiceTypeChange,
   onClearChat,
   onClearCanvas,
+  onTestVoice,
 }: ChatSidebarProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
@@ -140,6 +142,15 @@ export default function ChatSidebar({
                 </button>
               );
             })}
+            {onTestVoice && (
+              <button
+                onClick={onTestVoice}
+                title="Test sound output"
+                className="px-2 py-1 text-[7px] font-black uppercase tracking-widest border border-black/30 bg-gray-50 hover:bg-black hover:text-white transition-all ml-1"
+              >
+                🔊 TEST VOICE
+              </button>
+            )}
           </div>
 
           {/* Clear buttons */}
