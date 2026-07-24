@@ -185,7 +185,7 @@ export async function getRecommendedSkill(userId: string): Promise<SkillRecommen
   // Get user progress on unlocked skills
   const { data: userSkills } = await supabase
     .from('user_skills')
-    .select('skill_id, mastery_level, last_practiced, attempts')
+    .select('skill_id, mastery_level, last_practiced, attempts, successful_attempts')
     .eq('user_id', userId)
     .in('skill_id', unlockedIds);
 
