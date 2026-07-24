@@ -90,9 +90,14 @@ export async function POST(req: Request) {
           2. WHEN SOLVING AN EXERCISE OR PROBLEM:
              - If they make a mistake or get stuck, ask a guiding Socratic question to help them find their error instead of giving away the final solution.
           3. CANVAS CONTENT FORMAT:
-             - "canvas_content" MUST be an array of short visual lines.
-             - Examples for "Variables in C":
-               ["CONCEPT: Variable = Storage Box in Memory", "Syntax: int age = 20;", "int   -> Data type (whole number)", "age   -> Variable name", "20    -> Stored value"]
+             - "canvas_content" can be strings OR visual shape objects:
+               [
+                 { "type": "box", "text": "CONCEPT: Variable = Memory Box", "color": "blue" },
+                 { "type": "box", "text": "Syntax: int age = 20;", "color": "green" },
+                 { "type": "box", "text": "Memory Address 0x7F -> age: 20", "color": "black" },
+                 { "type": "sticky", "text": "💡 TIP: 'int' stores whole numbers without decimals!" }
+               ]
+             - Or plain string lines: ["Step 1: Identify x", "Step 2: Solve -> x = 5"]
              - NEVER leave "canvas_content" null when the student asks to teach, explain, or draw a concept!
 
           Respond ONLY in this exact JSON format:

@@ -108,34 +108,77 @@ export default function CanvasPage() {
     })),
   }), []);
 
-  // Write structured AI visual content (steps/equations/diagrams) to canvas
-  // Only called when AI explicitly provides canvas_content — NOT for raw chat text
-  const writeToCanvas = useCallback(async (lines: string[]) => {
-    if (!editor || !lines || lines.length === 0) return;
+  // Write structured PenEcho-style visual shapes (boxes, sticky notes, diagrams) to canvas
+  const writeToCanvas = useCallback(async (content: any[]) => {
+    if (!editor || !content || !Array.isArray(content) || content.length === 0) return;
     try {
       const bounds = (editor as any).getViewportPageBounds();
-      // Place content at bottom-left of current viewport, away from center work area
-      const startX = bounds.x + 40;
-      const startY = bounds.y + bounds.h - (lines.length * 36) - 60;
+      // Spatial placement: place AI shapes on right half of canvas, alongside student work
+      const startX = bounds.x + Math.max(bounds.w * 0.45, 400);
+      let currentY = bounds.y + 60;
 
-      const shapes = lines.map((line: string, i: number) => ({
-        type: 'text' as const,
-        x: startX,
-        y: startY + (i * 36),
-        props: {
-          richText: toRichText(line),
-          color: 'blue' as const,   // Blue so students can distinguish AI content from their own
-          size: 's' as const,
-          font: 'mono' as const,
-          w: Math.min(Math.max(line.length * 9, 200), 500),
-          scale: 1,
-          autoSize: true,
-          textAlign: 'start' as const,
-        },
-      }));
-      (editor as any).createShapes(shapes);
+      const shapesToCreate: any[] = [];
+
+      content.forEach((item: any, i: number) => {
+        const itemObj = typeof item === 'string' ? { type: 'box', text: item } : item;
+        const text = itemObj?.text || String(item);
+        const itemType = itemObj?.type || 'box';
+        const color = itemObj?.color || (i === 0 ? 'blue' : 'black');
+
+        if (itemType === 'sticky') {
+          shapesToCreate.push({
+            type: 'sticky',
+            x: startX,
+            y: currentY,
+            props: {
+              text: text,
+              color: 'yellow',
+              size: 'm',
+            },
+          });
+          currentY += 160;
+        } else if (itemType === 'box' || itemType === 'rectangle') {
+          const width = Math.min(Math.max(text.length * 10, 240), 500);
+          const height = Math.max(Math.ceil(text.length / 32) * 32, 55);
+          shapesToCreate.push({
+            type: 'geo',
+            x: startX,
+            y: currentY,
+            props: {
+              geo: 'rectangle',
+              w: width,
+              h: height,
+              richText: toRichText(text),
+              color: color,
+              fill: i === 0 ? 'semi' : 'none',
+              font: 'mono',
+              size: 's',
+            },
+          });
+          currentY += height + 16;
+        } else {
+          // Default text line
+          const width = Math.min(Math.max(text.length * 9, 200), 500);
+          shapesToCreate.push({
+            type: 'text',
+            x: startX,
+            y: currentY,
+            props: {
+              richText: toRichText(text),
+              color: 'blue',
+              size: 's',
+              font: 'mono',
+              w: width,
+              autoSize: true,
+            },
+          });
+          currentY += 38;
+        }
+      });
+
+      (editor as any).createShapes(shapesToCreate);
     } catch (e) {
-      console.warn('Could not write AI canvas content:', e);
+      console.warn('Could not write PenEcho canvas content:', e);
     }
   }, [editor, toRichText]);
 
