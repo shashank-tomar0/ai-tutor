@@ -80,8 +80,9 @@ export default function CanvasPage() {
     try {
       const shapeIds = (editor as any).getCurrentPageShapeIds();
       if (!shapeIds || shapeIds.size === 0) return null;
-      const { exportToBlob } = await import('tldraw');
-      const blob = await exportToBlob({
+      const tldrawMod = await import('tldraw') as any;
+      if (!tldrawMod.exportToBlob) return null;
+      const blob = await tldrawMod.exportToBlob({
         editor: editor as any,
         ids: [...shapeIds],
         format: 'png',
