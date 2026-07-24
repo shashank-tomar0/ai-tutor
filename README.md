@@ -1,62 +1,69 @@
+# Project Newton
+
+**A Socratic AI tutoring platform with real-time voice interaction, spatial canvas intelligence, and teacher visibility.**
+
+Project Newton is an open-source cognitive AI tutoring platform that combines an infinite digital whiteboard (Tldraw v5), real-time voice interaction (WebRTC VAD + Groq Whisper), a Socratic reasoning engine (Groq Llama-3.3-70B), teacher analytics, and full session replay (rrweb) into a single deployable Next.js 16 application.
+
 <p align="center">
-  <img src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1200&auto=format&fit=crop" alt="Newton AI Tutor Banner" width="100%" />
+  <img src="docs/newton-user-flow.svg" alt="Project Newton - Student Interaction Flow" width="100%" />
 </p>
 
-<h1 align="center">Project Newton</h1>
-
 <p align="center">
-  <em>An open-source Socratic AI tutor with real-time voice interaction and spatial canvas intelligence</em>
-</p>
-
-<p align="center">
-  <a href="#quick-start"><img src="https://img.shields.io/badge/Quick%20Start-1a1a2e?style=for-the-badge" alt="Quick Start"></a>
-  <a href="#architecture"><img src="https://img.shields.io/badge/Architecture-1a1a2e?style=for-the-badge" alt="Architecture"></a>
+  <a href="#quick-start"><img src="https://img.shields.io/badge/Quick_Start-1a1a2e?style=for-the-badge" alt="Quick Start"></a>
   <a href="#features"><img src="https://img.shields.io/badge/Features-1a1a2e?style=for-the-badge" alt="Features"></a>
-  <a href="PRD.md"><img src="https://img.shields.io/badge/Full%20PRD-1a1a2e?style=for-the-badge" alt="Full PRD"></a>
-  <a href="public/newton-architecture.excalidraw"><img src="https://img.shields.io/badge/Architecture%20Diagram-1a1a2e?style=for-the-badge" alt="Architecture Diagram"></a>
+  <a href="#api-reference"><img src="https://img.shields.io/badge/API_Reference-1a1a2e?style=for-the-badge" alt="API Reference"></a>
+  <a href="PRD.md"><img src="https://img.shields.io/badge/Full_PRD-1a1a2e?style=for-the-badge" alt="Full PRD"></a>
 </p>
 
+
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=nextdotjs" alt="Next.js 16" />
-  <img src="https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react" alt="React 19" />
-  <img src="https://img.shields.io/badge/Tldraw_5-000000?style=flat-square&logo=tldraw" alt="Tldraw v5" />
-  <img src="https://img.shields.io/badge/Groq_Llama_3.3_70B-f97316?style=flat-square" alt="Groq Llama 3.3 70B" />
-  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase" alt="Supabase" />
-  <img src="https://img.shields.io/badge/rrweb-FF6B6B?style=flat-square" alt="rrweb" />
-  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License" />
+  <img src="https://img.shields.io/badge/Next.js_16-000000?style=flat-square&logo=nextdotjs" alt="Next.js 16">
+  <img src="https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react" alt="React 19">
+  <img src="https://img.shields.io/badge/Tldraw_5-000000?style=flat-square" alt="Tldraw v5">
+  <img src="https://img.shields.io/badge/Groq_Llama_3.3_70B-f97316?style=flat-square" alt="Groq Llama 3.3 70B">
+  <img src="https://img.shields.io/badge/Supabase-3ECF8E?style=flat-square&logo=supabase" alt="Supabase">
+  <img src="https://img.shields.io/badge/rrweb-FF6B6B?style=flat-square" alt="rrweb">
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License">
+  <img src="https://img.shields.io/badge/PRD-v1.0-e67e22?style=flat-square" alt="PRD v1.0">
 </p>
 
 ---
 
 ## Table of Contents
 
-- [Why Newton?](#why-newton)
-- [The Problem We Solve](#the-problem-we-solve)
+- [Why Newton](#why-newton)
 - [Architecture](#architecture)
+  - [Client Layer](#client-layer)
+  - [API Layer](#api-layer)
+  - [LLM and AI Layer](#llm-and-ai-layer)
+  - [Data Layer](#data-layer)
 - [Features](#features)
+  - [Spatial Canvas Classroom](#spatial-canvas-classroom)
+  - [Socratic Engine](#socratic-engine)
+  - [Voice Pipeline](#voice-pipeline)
+  - [Teacher Dashboard](#teacher-dashboard)
+  - [Session Replay](#session-replay)
+  - [Adaptive Skill Tree](#adaptive-skill-tree)
 - [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Database Setup](#database-setup)
+  - [Running the Application](#running-the-application)
 - [Project Structure](#project-structure)
-- [How the Socratic Engine Works](#how-the-socratic-engine-works)
-- [Tech Stack](#tech-stack)
+- [API Reference](#api-reference)
+- [Database Schema](#database-schema)
+- [Socratic Engine Architecture](#socratic-engine-architecture)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
 
 ---
 
-## Why Newton?
+## Why Newton
 
-Every other open-source AI tutor is a CLI tool or a chat widget. Newton is neither. It is a complete spatial learning environment that combines an infinite digital whiteboard, real-time voice interaction, a Socratic reasoning engine, a teacher analytics dashboard, and full session replay. Students draw problems on the canvas, speak or type questions, and receive guiding responses in three forms simultaneously: a chat message, text written directly onto the canvas, and spoken audio with synchronized captions.
+A June 2026 Stanford randomized controlled trial across 350 elementary students reached a sobering conclusion: giving students access to an AI tutor does not mean they will use it. The study found that engagement, not access, is the binding constraint. Students need a reason to return, a sense of progression, and a modality that matches how they naturally work.
 
-Newton was built because the current generation of AI tutors, including those offered by major platforms, fail to address how students actually learn. They are chat-only, so they cannot see diagrams or equations. They answer too quickly, so students copy answers instead of developing understanding. They offer no visibility to teachers, who remain blind to who is struggling and why. Newton solves all four problems in a single deployable platform.
-
----
-
-## The Problem We Solve
-
-A June 2026 Stanford randomized controlled trial across approximately 350 elementary students reached a sobering conclusion: giving students access to an AI tutor does not mean they will use it. The study found that engagement, not access, is the binding constraint. Students need a reason to return, a sense of progression, and a modality that matches how they naturally work.
-
-Current AI tutors fail in four ways:
+Current AI tutors fail in four fundamental ways.
 
 **They are chat-only.** Chat interfaces cannot represent spatial information. A student drawing a geometry problem or an algebraic equation has no way to show their work. The tutor cannot see the diagram, the labeled sides, or the partial attempt. This forces the student to describe in words what would be obvious in a drawing, creating friction that discourages use.
 
@@ -72,93 +79,140 @@ Newton addresses all four problems with a single architecture centered on the sp
 
 ## Architecture
 
+The system is organized into four layers, each communicating through well-defined interfaces.
+
 <p align="center">
-  <img src="newton-architecture.svg" alt="Newton System Architecture" width="100%" />
+  <img src="docs/architecture.svg" alt="Newton System Architecture Diagram" width="100%">
 </p>
 
-Newton runs entirely within a single Next.js 16 codebase deployable to Vercel in one click. The system is organized into four layers.
+The full Excalidraw diagram is available at `docs/architecture.excalidraw` and can be edited at [excalidraw.com](https://excalidraw.com) by importing the file.
 
-### Client Layer (Browser)
+### Client Layer
 
-The frontend runs Next.js 16 with React 19 and Tailwind CSS. The primary interface is the classroom page, which presents a 2-column layout with a Tldraw v5 infinite whiteboard on the left and a 420px chat sidebar on the right.
+The frontend runs Next.js 16 with React 19 and Tailwind CSS. The primary interface is the classroom page, which presents a two-column layout with a Tldraw v5 infinite whiteboard on the left and a 400px chat sidebar on the right.
 
-The Tldraw canvas supports the full drawing toolset including text, geometric shapes, freehand drawing, arrows, sticky notes, and laser pointers. All shapes are serialized to JSON and sent with every AI request. A custom Canvas Parser engine analyzes the shape tree before the request reaches the LLM, producing a structured description that includes shape counts, extracted text content, geometric type and dimensions, arrow start and end points, line classification (straight, curved, horizontal, vertical, wavy), and higher-level diagram type detection (algebraic equation, coordinate plane, table, flowchart, geometric figure).
+**Canvas (Tldraw v5).** The infinite whiteboard supports the full drawing toolset: text, rectangles, ellipses, diamonds, triangles, arrows, lines, freehand drawing, sticky notes, and image imports. Shapes are serialized to JSON and sent with every AI request. A custom Canvas Parser engine (397 lines, `src/utils/canvas-parser.ts`) analyzes the shape tree before each request, producing a structured description that includes:
 
-The chat sidebar provides message history with user messages right-aligned on black and AI messages left-aligned with a brain icon and the Newton label. A typing indicator animates during AI processing. Voice controls allow toggling between browser SpeechSynthesis and mute. A session start and end button controls the voice activity detection pipeline.
+- Shape type counts and total count
+- Extracted text content from text and sticky shapes
+- Geometric shape descriptions (type, position, dimensions)
+- Arrow connection tracing (start to end coordinates)
+- Line classification (straight horizontal, vertical, diagonal, curved, wavy)
+- Freehand stroke segment counts
+- Higher-level diagram type detection (algebraic equation, coordinate plane, table, flowchart, geometric figure, freehand sketch)
 
-The CaptionsBar component overlays the bottom of the canvas area and displays AI speech as animated word-by-word captions synchronized with TTS audio. Words appear progressively at 50 to 80 millisecond intervals, with a blinking cursor during active typing and a 2-second fade delay after speech completes.
+**ChatSidebar.** The chat interface provides message history with user messages right-aligned on black backgrounds and AI messages left-aligned with a brain icon. A typing indicator animates during AI processing. Voice controls toggle between Human Voice (OpenRouter TTS via Audio element), System Voice (browser SpeechSynthesis), and Mute. A session start/end button controls the voice activity detection pipeline.
 
-### API Layer (Next.js Route Handlers)
+**CaptionsBar.** An animated word-by-word caption overlay synchronized with audio playback, positioned at the bottom of the canvas area. The component handles three voice modes with distinct visual indicators.
 
-All server-side logic is implemented as Next.js App Router route handlers within the same project. The main endpoints are:
+**Additional components.** The SkillTreeSidebar provides a collapsible modal for browsing and selecting skills. The SessionSummaryModal (built but not yet wired) displays mastery delta, duration, and struggle metrics. The HandwritingModal enables canvas image capture for OCR-based AI analysis.
 
-- POST /api/chat-audio. Accepts multipart form data containing either an audio blob or a text string, the current canvas shapes serialized as JSON, and optional skill context. If an audio blob is present, it is transcribed by Groq Whisper. The combined transcript and canvas analysis are sent to the Socratic engine and the response is returned as JSON.
+### API Layer
 
-- POST /api/chat. Accepts a JSON body with the text transcript and canvas shapes. Used when the student types instead of speaking.
+All server-side logic is implemented as Next.js App Router route handlers within the same project. Each route follows a consistent pattern: request validation, external API calls (Groq, Supabase, OpenRouter), structured JSON response.
 
-- GET /api/skills. Returns the full skill tree with user mastery progress merged, structured as a recursive hierarchy with children arrays.
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/chat-audio` | POST | Accepts audio blobs (via FormData) or text, transcribes with Groq Whisper, sends to Socratic engine, returns JSON with text and canvas content |
+| `/api/chat` | POST | Accepts JSON with transcript and shapes, sends to Socratic engine, returns JSON response |
+| `/api/tts` | POST | Proxies text to OpenRouter TTS API, returns MP3 audio stream, falls back to JSON indicating browser fallback |
+| `/api/skills` | GET | Returns skill tree with optional user progress merged, supports subject filtering |
+| `/api/skills/recommendations` | GET | Returns ranked list of recommended next skills based on prerequisites, mastery, recency, and gateway value |
+| `/api/skills/update` | POST | Updates user skill mastery with compounding formula |
+| `/api/dashboard/heatmap` | GET | Returns concept mastery data aggregated from user_skills and interventions |
+| `/api/dashboard/struggling` | GET | Returns recent intervention records for the live teacher feed |
 
-- GET /api/skills/recommendations. Accepts a userId query parameter and returns a ranked list of recommended next skills based on prerequisites, current mastery, recency, and gateway value.
+### LLM and AI Layer
 
-- POST /api/skills/update. Accepts userId, skillId, and success flag, and updates the user's mastery level using a compounding formula based on attempt count and success rate.
+**Socratic Engine (Groq Llama-3.3-70B Versatile).** The core reasoning engine runs on Groq's infrastructure at over 800 tokens per second, enabling real-time conversational dialogue. The system prompt instructs the model to:
 
-### LLM and AI Inference Layer
+- Follow the student's lead on topic selection
+- Read everything on the canvas before responding
+- Explain concepts using analogies and worked examples
+- Use Socratic questioning only when the student is genuinely stuck
+- Respond exclusively in JSON format: `{ "is_struggling": boolean, "concept": string, "response_text": string, "canvas_content": array | null }`
 
-The core Socratic engine runs on Groq Llama-3.3-70b-versatile, chosen for its inference speed exceeding 800 tokens per second, which enables real-time conversational dialogue without perceptible latency.
+**Multimodal Vision (Fallback).** When canvas image data is available (via `captureCanvasImage`), the API switches to `llama-3.2-11b-vision-instruct` for multimodal reasoning. This enables handwriting OCR, diagram interpretation, and handwritten math recognition.
 
-The system prompt instructs the model to follow the student's lead on topic, read everything on the canvas, explain concepts clearly using analogies and worked examples, and only use Socratic questioning when the student is genuinely stuck. The model responds in JSON format with three fields: is_struggling (boolean), concept (the identified topic), and response_text (the explanation or guiding question).
+**Speech-to-Text (Groq Whisper).** Audio captured through the browser MediaRecorder API is transcribed using Groq Whisper's `whisper-large-v3` model. The VAD pipeline uses Web Audio API's `AnalyserNode` with `fftSize=512`, computing average frequency amplitude and triggering recording above a threshold of 15 (on a 0-255 scale) with a silence timeout of 1,500ms.
 
-Groq Whisper handles speech-to-text using the whisper-large-v3 model. Audio is captured through the browser MediaRecorder API, triggered by a voice activity detector that monitors audio levels through the Web Audio AnalyserNode interface.
+**Text-to-Speech (OpenRouter + Browser Fallback).** The Human Voice mode fetches MP3 audio from OpenRouter's TTS API (OpenAI TTS-1 model) and plays it through a standard HTML Audio element. This approach avoids a known Chrome bug where `window.speechSynthesis` silently drops audio through non-default output devices (headphones, Bluetooth headsets). The System Voice mode uses browser `SpeechSynthesis` with a pre-speak AudioContext ping workaround for improved device compatibility. Mute mode disables all audio output.
 
-Text-to-speech is handled by the browser native SpeechSynthesis API. This choice eliminates all infrastructure costs and latency from network requests. Voice quality depends on the operating system and browser: Windows provides Microsoft David (male) and Zira (female), macOS provides Alex, and Chrome provides Google US English. The system attempts to select a male voice by default, falling back to any English voice.
+### Data Layer
 
-### Data Layer (Supabase)
+**Supabase PostgreSQL.** Six database tables store all application data with Row-Level Security enabled:
 
-Supabase provides three services. Authentication handles Google OAuth and email sign-in. The PostgreSQL database stores six tables: user_profiles for RBAC, session_replays for rrweb event data and canvas snapshots, interventions for the live teacher feed, skills for the self-referencing skill tree, user_skills for per-user mastery tracking, and skill_prerequisites for the learning dependency graph. Realtime subscriptions power the live teacher dashboard by pushing INSERT events from the interventions table to connected dashboard clients.
+- `user_profiles`: Authentication profiles with RBAC (student/teacher roles)
+- `session_replays`: rrweb event data and canvas snapshots with teacher feedback
+- `skills`: Self-referencing tree (30 skills across 7 root subjects)
+- `skill_prerequisites`: Directed acyclic graph for learning dependencies
+- `user_skills`: Per-user mastery tracking with recency and attempt counts
+- `interventions`: Real-time struggle detection feed for teachers
+
+**Supabase Auth.** Google OAuth 2.0 authentication with automatic profile creation on first login. Role selection redirects students to `/classroom` and teachers to `/dashboard`.
+
+**Supabase Realtime.** WebSocket-based subscriptions push INSERT events from the `interventions` and `session_replays` tables to connected dashboard clients in real-time, enabling the live teacher feed.
 
 ---
 
 ## Features
 
-### Classroom
+### Spatial Canvas Classroom
 
-The classroom page is the primary student interface. It presents a full-screen 2-column grid with the canvas occupying the flexible center area and a 420px chat sidebar on the right.
+The classroom page is the primary student interface. It presents a full-screen two-column grid with the canvas occupying the flexible center area and a 400px chat sidebar on the right. The top bar provides navigation, skill selection, assignment import, handwriting reading, canvas clearing, and a live session status indicator.
 
-The canvas is a Tldraw v5 infinite whiteboard with full drawing capabilities. Students can draw text, rectangles, ellipses, diamonds, triangles, arrows, lines, and freehand strokes. The canvas state persists across sessions using the Tldraw persistence key.
+When a student types in the chat or speaks through the microphone, the system:
 
-When a student types in the chat sidebar or speaks through the microphone, the system:
+1. Serializes all canvas shapes to JSON.
+2. Runs the Canvas Parser to produce a rich textual description.
+3. Sends the transcript and canvas description to the Socratic engine.
+4. Receives a JSON response containing the struggle flag, concept, response text, and optional canvas drawing commands.
+5. Renders the response in the chat sidebar, writes structured shapes onto the canvas at the current viewport position (with automatic stacking and column overflow handling), and speaks the response through TTS with synchronized animated captions.
 
-1. Serializes all shapes on the canvas into a JSON structure.
-2. Runs the Canvas Parser to produce a rich textual description of the canvas contents.
-3. Sends the student's message and the canvas description to the Socratic engine.
-4. Receives a JSON response containing the struggle flag, concept, and response text.
-5. Renders the response as a chat message in the sidebar, writes text shapes onto the canvas at the current viewport position, and speaks the response through TTS with animated captions.
+The classroom also records all DOM interactions via rrweb for later playback. When a session ends, the events are compressed and saved to Supabase. If the database connection fails, the events are downloaded as a local JSON file.
 
-The classroom also records all DOM interactions via rrweb for later playback by teachers. When a session ends, the events are compressed and saved to Supabase. If the database connection fails, the events are downloaded as a local JSON file.
+### Socratic Engine
+
+The system prompt is designed to make the model follow the student's lead on topic selection. If the student asks about React, the model teaches React. If the student draws a triangle, the model teaches geometry. If the student writes an equation, the model teaches algebra. The model reads everything on the canvas, explains clearly using analogies, and resorts to Socratic questioning only when the student indicates genuine confusion.
+
+When a student is identified as struggling (`is_struggling: true`), an intervention record is inserted into Supabase, triggering a Realtime push to the teacher dashboard.
+
+### Voice Pipeline
+
+The voice pipeline operates in three modes selectable from the chat sidebar:
+
+- **Human Voice.** Audio is sent to the `/api/tts` endpoint, which proxies the request to OpenRouter's OpenAI TTS-1 model. The returned MP3 is played via a standard HTML Audio element. This mode works correctly with all audio output devices including headphones and Bluetooth headsets.
+
+- **System Voice.** The browser's native `window.speechSynthesis` API handles TTS. A pre-speak AudioContext ping mitigates the long-standing Chrome bug where SpeechSynthesis drops audio through non-default output devices.
+
+- **Mute.** All audio output is disabled. Captions still display so students can read responses.
 
 ### Teacher Dashboard
 
-The dashboard is an RBAC-protected panel accessible only to users with the teacher role. It presents three panels in a grid layout.
+The dashboard is an RBAC-protected panel accessible only to users with the `teacher` role. It presents three panels in a grid layout:
 
-The concept mastery panel displays a bar chart of concepts versus struggle frequency, rendered with Recharts. Data is aggregated from the interventions table.
+- **Concept Mastery (Panel 01).** A bar chart rendered with Recharts showing concept versus struggle frequency, aggregated from the interventions table.
 
-The live interventions feed displays struggling students in real-time, showing the student name, concept, and the exact struggle text. This feed is powered by Supabase Realtime subscriptions that listen for INSERT events on the interventions table.
+- **Live Interventions (Panel 02).** A real-time feed displaying struggling students with their name, concept, and exact struggle text. Powered by Supabase Realtime subscriptions listening for INSERT events on the `interventions` table.
 
-The cognitive replays panel lists all saved sessions with the student name, concept, and timestamp. Each entry has a play button that opens the replay player page. If no replays are available, the panel shows a fallback with a link to the manual viewer.
+- **Cognitive Replays (Panel 03).** A list of all saved sessions with student name, concept, and timestamp. Each entry has a play button that opens the replay player at `/replay/[id]`. If no replays are available, a fallback section links to the manual file upload viewer.
 
-### Aha! Replays
+### Session Replay
 
-The replay player reconstructs a recorded canvas session using the rrweb-player library. When a teacher opens a replay by ID, the events are fetched from Supabase and the player renders them with playback controls.
+The replay player reconstructs a recorded canvas session using the rrweb-player library. When a teacher opens a replay by ID, the events are fetched from Supabase and the player renders them with auto-play and full playback controls. The replay page includes metadata (student name, concept, timestamp, duration, struggle count) and a teacher feedback form.
 
-The replay page also includes a teacher feedback form. The teacher can type evaluation notes and save them to the session_replays database record. If the database is unreachable, the feedback is saved to localStorage.
+A standalone replay page at `/replay` allows uploading local JSON files for playback when cloud replays are unavailable.
 
 ### Adaptive Skill Tree
 
-The database schema includes three tables for skill tracking. The skills table is a self-referencing tree with fields for name, subject, parent, difficulty, icon, and description. The skill_prerequisites table defines learning dependencies as a directed acyclic graph. The user_skills table tracks per-user progress with mastery level, attempt counts, and recency.
+The database includes 30 seeded skills across 7 root subjects with prerequisite chains forming a directed acyclic graph. The recommendation algorithm scores each unlocked skill based on:
 
-The seed data includes 30 skills across 7 root subjects: Arithmetic (6 children), Algebra (5 children), Geometry (5 children), Trigonometry (4 children), Calculus (3 children), Statistics (4 children), and Computer Science Basics (5 children). Prerequisites chain from Arithmetic through Algebra and Geometry into Trigonometry, Calculus, and Statistics.
+- Current mastery level (lower mastery = higher priority)
+- Days since last practice (due for review after 7 days)
+- Gateway value (bonus points for skills that unlock others)
+- Difficulty tier (easier skills prioritized within same priority band)
 
-The recommendation algorithm scores each unlocked skill based on current mastery, days since last practice, and the number of skills it unlocks. Skills that have never been practiced receive the highest priority. Skills below 30 percent mastery receive the next priority level. Skills between 30 and 60 percent mastery are prioritized third. Skills at proficient levels that have not been practiced in over 7 days receive a lower priority for review. Each skill receives a bonus for every downstream skill it would unlock.
+The SkillTreeSidebar component displays the full tree as a collapsible hierarchy with color-coded mastery percentages (gray/red/amber/blue/green), subject filter tabs (Math, CS), and a recommended next skill card with reasoning.
 
 ---
 
@@ -167,8 +221,8 @@ The recommendation algorithm scores each unlocked skill based on current mastery
 ### Prerequisites
 
 - Node.js 18 or later
-- A Groq API key. Sign up at console.groq.com for a free account.
-- A Supabase project for authentication and database. The free tier at supabase.com is sufficient.
+- A Groq API key (free at console.groq.com)
+- A Supabase project (free tier at supabase.com)
 
 ### Installation
 
@@ -183,16 +237,22 @@ npm install
 Create a file named `.env.local` in the project root:
 
 ```env
-GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_API_KEY=gsk_your_groq_api_key
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+OPENROUTER_API_KEY=sk-or-v1-your_openrouter_key
 ```
+
+The `OPENROUTER_API_KEY` is optional. When set, the Human Voice mode uses OpenRouter TTS for higher quality audio output. When unset, all voice modes fall back to browser SpeechSynthesis.
 
 ### Database Setup
 
-Open your Supabase project dashboard, navigate to the SQL Editor, and run the entire contents of `supabase_schema.sql`. This creates all six database tables and inserts the seed data for the skill tree.
+1. Open your Supabase project dashboard.
+2. Navigate to the SQL Editor.
+3. Open and run the entire contents of `supabase_schema.sql`.
+4. This creates all six database tables with indexes, enables Row-Level Security, and inserts 30 seed skills with prerequisite chains.
 
-### Run the Development Server
+### Running the Application
 
 ```bash
 npm run dev
@@ -202,16 +262,16 @@ Open http://localhost:3000 in your browser.
 
 ### Testing the Full Application
 
-1. Open the landing page. The brutalist design presents the Newton manifesto, feature grid, and pricing tiers.
-2. Click "START A SESSION" or navigate to /classroom. You will be redirected to the login page.
+1. Open the landing page to view the Newton manifesto, feature grid, and pricing tiers.
+2. Navigate to `/classroom`. You will be redirected to the login page.
 3. Sign in with Google OAuth through the Supabase Auth UI.
 4. Choose "Student" on the role selection screen.
-5. The classroom loads with the Tldraw canvas and chat sidebar. Draw an equation or shape on the canvas.
+5. The classroom loads with the Tldraw canvas and chat sidebar. Draw an equation or shape.
 6. Type a question in the chat input. The AI responds in the chat, writes on the canvas, and speaks with captions.
 7. Click START to enable voice mode, then speak a question. The voice is transcribed by Groq Whisper and processed through the same pipeline.
-8. End the session. The replay is saved to Supabase.
+8. End the session. The replay is saved to Supabase (or downloaded as a JSON file).
 9. Sign out and sign in again, choosing "Teacher" as the role.
-10. Navigate to /dashboard to see the intervention feed and replay library.
+10. Navigate to `/dashboard` to see the intervention feed and replay library.
 
 ---
 
@@ -223,137 +283,291 @@ src/
     page.tsx                     Landing page with brutalist design
     layout.tsx                   Root layout with font loading
     globals.css                  Tailwind and global style definitions
+
     classroom/page.tsx           Main canvas, chat, voice, and captions interface
-    dashboard/page.tsx           Teacher analytics dashboard
+    dashboard/page.tsx           Teacher analytics dashboard (RBAC protected)
     login/page.tsx               Supabase Auth UI with Google OAuth
     login/role-select/page.tsx   Student or Teacher role selection
+    progress/page.tsx            Student progress dashboard
     replay/page.tsx              Local JSON file upload and playback
-    replay/[id]/page.tsx         Cloud replay player with teacher feedback form
+    replay/[id]/page.tsx         Cloud replay player with teacher feedback
+
     api/
-      chat/route.ts              Text and canvas context to Groq Socratic engine
-      chat-audio/route.ts        Voice transcription and canvas to Groq
-      tts/route.ts               TTS endpoint delegating to browser speech
-      skills/route.ts            Skill tree retrieval with user progress
-      skills/recommendations/route.ts  Next skill recommendation generation
-      skills/update/route.ts     Mastery progress update
-      dashboard/struggling/route.ts    Interventions endpoint
-      dashboard/heatmap/route.ts       Concept mastery endpoint
+      chat/route.ts              Text + canvas to Socratic engine
+      chat-audio/route.ts        Voice + canvas to Socratic engine (with vision)
+      tts/route.ts               TTS proxy to OpenRouter OpenAI TTS
+      skills/route.ts            Skill tree with user progress
+      skills/recommendations/    Next skill recommendation engine
+      skills/update/             Mastery progress updates
+      dashboard/heatmap/         Concept mastery aggregation
+      dashboard/struggling/      Live intervention feed
+
   components/
     ChatSidebar.tsx              Message history, input, session controls, voice selector
-    CaptionsBar.tsx              Animated word-by-word speech captions overlay
+    CaptionsBar.tsx              Animated speech captions overlay
+    SkillTreeSidebar.tsx         Collapsible skill tree with recommendations
+    SessionSummaryModal.tsx      End-of-session summary modal
+
   utils/
-    supabase.ts                  Supabase client creation
-    skill-engine.ts              Recommendation algorithm and mastery calculation helpers
-    canvas-parser.ts             Canvas shape analysis and diagram detection engine
+    supabase.ts                  Supabase client singleton
+    skill-engine.ts              Recommendation algorithm, mastery helpers
+    canvas-parser.ts             Shape normalization, diagram classification engine
+
+docs/
+  architecture.excalidraw        Editable architecture diagram (Excalidraw format)
+  architecture.svg               Rendered architecture diagram
+
+PRD.md                           Full product requirements document
+supabase_schema.sql              Database schema and seed data
 ```
 
 ---
 
-## How the Socratic Engine Works
+## API Reference
 
-The system prompt given to Groq Llama-3.3-70b is designed to make the model follow the student's lead on topic selection. If the student asks about React, the model teaches React. If the student draws a triangle, the model teaches geometry. If the student writes an equation, the model teaches algebra. The model reads everything on the canvas, explains clearly using analogies, and resorts to Socratic questioning only when the student indicates genuine confusion.
+### POST /api/chat-audio
 
-The canvas parser runs before every request. It normalizes each shape into a standard format, extracting the type, position, dimensions, text content, and point arrays. It then bucktes shapes by type, generates type counts for a summary line, extracts all text content from text shapes and sticky notes, describes geometric shapes by type, position, and dimensions, traces arrows from their start to end points, classifies lines by their curvature and orientation, counts freehand drawing strokes, and runs a detection algorithm to identify higher-level structures such as algebraic equations, coordinate planes, tables, flowcharts, and geometric figures.
+Accept multipart form data with the following fields:
 
-The interaction flow proceeds as follows:
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| file | File | No | Audio blob (webm) for speech-to-text |
+| text | string | No | Direct text input (alternative to file) |
+| shapes | string (JSON) | Yes | Serialized Tldraw shapes array |
+| image | string | No | Base64 PNG of canvas for vision model |
+| skill | string (JSON) | No | Selected skill object with id and name |
+| user_id | string | No | Supabase auth user ID |
+| student_name | string | No | Display name for intervention logging |
 
-1. The student types a message in the chat sidebar or speaks into the microphone. If speaking, the VAD captures audio and sends it to Groq Whisper for transcription.
-2. The editor serializes all current canvas shapes to JSON.
-3. The canvas parser converts the raw shape JSON into a structured textual description.
-4. The transcript and canvas description are sent to the Socratic engine, which returns a JSON object with is_struggling, concept, and response_text.
-5. The response is added to the chat message list, written onto the canvas as text shapes at the current viewport position, and spoken through browser TTS with animated captions.
-6. If the student was identified as struggling, an intervention record is inserted into Supabase, triggering a Realtime push to the teacher dashboard.
+At least one of `file` or `text` must be provided.
+
+**Response:**
+```json
+{
+  "type": "ai_response",
+  "text": "Great question about solving for x. Here is a hint: what operation would undo the multiplication?",
+  "transcript": "How do I solve 3x plus 5 equals 20?",
+  "canvas_content": [
+    { "type": "box", "text": "Equation: 3x + 5 = 20", "color": "violet", "fill": "semi" },
+    { "type": "arrow", "fromIndex": 0, "toIndex": 2, "label": "subtract 5 from both sides" }
+  ]
+}
+```
+
+### POST /api/chat
+
+Accept JSON body:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| transcript | string | Yes | Student's text message |
+| shapes | array | No | Tldraw shapes array |
+| skill | object | No | Selected skill context |
+| user_id | string | No | Auth user ID |
+| student_name | string | No | Display name |
+
+**Response:** Same structure as `/api/chat-audio` (without `transcript` field).
+
+### GET /api/skills
+
+**Query Parameters:**
+- `userId` (string, optional): If provided, merges user mastery progress into the tree.
+- `subject` (string, optional): Filters skills by subject (e.g., "mathematics", "computer_science").
+
+**Response:**
+```json
+{
+  "skills": [
+    {
+      "id": "uuid",
+      "name": "Arithmetic",
+      "subject": "mathematics",
+      "difficulty": 1,
+      "mastery_level": 0.75,
+      "children": [ /* nested skill objects */ ]
+    }
+  ]
+}
+```
+
+### GET /api/skills/recommendations
+
+**Query Parameters:**
+- `userId` (string, required): The user ID to generate recommendations for.
+
+**Response:**
+```json
+{
+  "recommendation": {
+    "skill": { "id": "uuid", "name": "Linear Equations", "icon": "x", "difficulty": 5 },
+    "mastery_level": 0,
+    "attempts": 0,
+    "reason": "Never practiced - start here",
+    "unlocks": 3
+  },
+  "candidates": [
+    { "skill": { "id": "uuid", "name": "Fractions", "icon": "cake", "difficulty": 3 }, "score": 95, "reason": "Struggling (20% mastery)" }
+  ]
+}
+```
+
+### POST /api/skills/update
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "skillId": "uuid",
+  "success": true
+}
+```
+
+**Response:**
+```json
+{
+  "mastery_level": 0.42,
+  "attempts": 3,
+  "successful_attempts": 2,
+  "previous_mastery": 0.15
+}
+```
+
+### POST /api/tts
+
+**Request Body:**
+```json
+{
+  "text": "Hello, let me explain how to solve this equation.",
+  "voice": "alloy"
+}
+```
+
+**Response:** MP3 audio stream (Content-Type: audio/mpeg) on success. Falls back to `{ "fallback": true }` JSON when the API is unavailable.
 
 ---
 
-## Tech Stack
+## Database Schema
 
-| Technology | Role |
-|-----------|------|
-| Next.js 16 | Full-stack framework with App Router, API routes, and Vercel deployment |
-| React 19 | Component-based UI library |
-| Tailwind CSS | Utility-first styling framework |
-| Tldraw v5 | Infinite whiteboard canvas with extensible shape API |
-| Groq Llama-3.3-70b | Socratic reasoning engine with JSON schema enforcement |
-| Groq Whisper | Speech-to-text transcription via whisper-large-v3 |
-| Web Speech API | Browser-native text-to-speech with zero infrastructure cost |
-| Supabase | Authentication, PostgreSQL database, and Realtime subscriptions |
-| rrweb | DOM session recording and playback |
-| Recharts | Dashboard chart rendering |
-| Framer Motion | Animation library for UI transitions |
-| Canvas Parser | Custom shape normalization and diagram classification engine |
-| Excalidraw | System architecture diagram generation |
+Six tables with Row-Level Security, indexes on foreign keys, and seed data.
+
+```
+auth.users (managed by Supabase Auth)
+  id UUID PK, email TEXT, created_at TIMESTAMPTZ
+
+user_profiles
+  id UUID PK -> auth.users, role TEXT CHECK (student|teacher), name TEXT, created_at TIMESTAMPTZ
+
+session_replays
+  id UUID PK, user_id UUID -> auth.users, student_name TEXT, concept TEXT,
+  events JSONB, canvas_snapshot JSONB, feedback TEXT, created_at TIMESTAMPTZ
+
+skills (self-referencing tree)
+  id UUID PK, name TEXT, subject TEXT, parent_id UUID -> skills,
+  difficulty INT (1-10), icon TEXT, order_index INT, description TEXT, timestamps
+
+skill_prerequisites (DAG)
+  skill_id UUID PK -> skills, requires_skill_id UUID PK -> skills
+
+user_skills
+  id UUID PK, user_id UUID -> auth.users, skill_id UUID -> skills,
+  mastery_level NUMERIC(3,2), attempts INT, successful_attempts INT,
+  last_practiced TIMESTAMPTZ, UNIQUE (user_id, skill_id)
+
+interventions
+  id UUID PK, user_id UUID -> auth.users, student_name TEXT, concept TEXT,
+  struggle TEXT, breakthrough TEXT, skill_id UUID -> skills, created_at TIMESTAMPTZ
+```
+
+---
+
+## Socratic Engine Architecture
+
+The system prompt given to Groq Llama-3.3-70B is designed for structured JSON output. The key architecture decisions:
+
+**Canvas Injection.** Before every request, the Canvas Parser (`src/utils/canvas-parser.ts`) normalizes all shapes and produces a structured summary. The parser handles Tldraw v5's `richText` format (extracting plain text from the JSON structure), normalizes colors to valid Tldraw values, and detects higher-level diagram types (algebraic equations, coordinate planes, tables, flowcharts, geometric figures, freehand sketches).
+
+**System Prompt Design.** The prompt instructs the model to teach concepts clearly when asked, using both chat and canvas output. It must populate `canvas_content` with structured visual shapes (boxes, circles, arrows, diamonds, clouds, stars, notes) when explaining concepts. For exercises and problems, it uses Socratic questioning to guide students to find their own errors instead of giving away the solution.
+
+**Intervention Flow.** When the model returns `is_struggling: true`, the API inserts a record into the `interventions` table. Supabase Realtime then pushes this event to all connected teacher dashboard clients.
+
+**Multimodal Fallback.** When canvas image data is available (base64 PNG via `exportToBlob`), the API switches from text-only to multimodal by sending the image alongside the text context. The model uses `llama-3.2-11b-vision-instruct` for vision-capable reasoning.
 
 ---
 
 ## Roadmap
 
-### Tier 0 (Shipped)
+### Tier 0 (Currently Shipped)
 
-- Socratic engine with full canvas context awareness
-- Tldraw v5 infinite canvas with complete drawing toolset
+- Socratic engine with full canvas context awareness (Groq Llama-3.3-70B)
+- Tldraw v5 infinite whiteboard with complete drawing toolset
 - Voice activity detection using Web Audio AnalyserNode
-- Groq Whisper speech-to-text transcription
-- Browser SpeechSynthesis text-to-speech with male voice selection
+- Groq Whisper speech-to-text (whisper-large-v3)
+- Dual TTS: OpenRouter (Human Voice) and browser SpeechSynthesis (System Voice)
 - Chat sidebar with message history, typing indicator, and session controls
-- Animated speech captions overlay with word-by-word reveal
-- AI writes explanations onto the canvas as text shapes
+- AI writes structured visual shapes onto the canvas in real-time
 - Teacher dashboard with concept heatmap, live intervention feed, and replay library
 - rrweb session recording with Supabase storage and JSON fallback
-- Supabase authentication with Google OAuth and role-based access control
+- Supabase authentication with Google OAuth and RBAC (student/teacher)
 - Adaptive skill tree with 30 seeded skills across 7 subjects
 - Per-user mastery tracking with compounding success formula
 - Prerequisite-based skill recommendation algorithm
 - Canvas parser for shape, geometry, equation, and diagram detection
-- Excalidraw architecture diagram with four layers and six upcoming upgrades
-- Comprehensive product requirements document
+- System architecture diagram (Excalidraw + SVG)
+- Comprehensive product requirements document (PRD.md)
 
-### Tier 1 (Next)
+### Tier 1 (In Development)
 
 - Real database integration for dashboard analytics endpoints
-- Student progress dashboard with daily streak tracking, mastery timeline charts, and achievement badges
-- Session summary modal showing mastery delta, concept coverage, struggle counts, and one-click replay save
+- Student progress dashboard with daily streak tracking, mastery timeline charts, and badge system
+- Session summary modal showing mastery delta, concept coverage, and struggle metrics
 - Multi-subject skill trees for physics, chemistry, biology, and programming
+- Session memory for conversation context (last 5 Q&A pairs)
 
-### Tier 2 (Growth)
+### Tier 2 (Next Quarter)
 
-- Multiplayer classrooms with Tldraw collaborative sync via Yjs and WebSockets
-- Teacher can create rooms, generate join codes, spectate live student canvases, and push problems
+- Multiplayer classrooms with collaborative Tldraw sync via Yjs and WebSockets
+- Teacher can create rooms, generate join codes, and push problems to student canvases
 - Dark mode with system preference detection and high-contrast accessibility
 - Parent portal with weekly progress digest emails
 - Curriculum alignment with Common Core, CBSE, and GCSE standards
 
-### Tier 3 (Scale)
+### Tier 3 (Future)
 
 - LMS integrations with Google Classroom, Canvas, Schoology, and Powerschool via LTI 1.3
-- Offline-first progressive web app with IndexedDB sync queue and background sync
+- Offline-first progressive web app with IndexedDB sync queue
 - Mobile native applications for iOS and Android with handwriting recognition
-- Fine-tuned Socratic model for reduced API costs
+- Fine-tuned Socratic model for reduced API costs (self-hosted vLLM)
 - Enterprise admin dashboard with multi-school analytics and SSO
 
 ### God-Level Upgrades
 
-1. Multimodal Canvas Vision. Send canvas PNG snapshots alongside shape JSON to Gemini 2.0 Flash Vision, enabling the AI to understand handwritten math, hand-drawn diagrams, and geometric angles that pure vector analysis cannot interpret.
+1. **Multimodal Canvas Vision.** Send canvas PNG snapshots alongside shape JSON to a vision model, enabling the AI to understand handwritten math, hand-drawn diagrams, and geometric angles that pure vector analysis cannot interpret.
 
-2. Low-Latency Voice Pipeline. Replace the current request-response voice cycle with a streaming WebSocket pipeline using Cartesia or Deepgram, achieving sub-600-millisecond voice-to-voice interaction with interrupt handling.
+2. **Low-Latency Voice Pipeline.** Replace the current request-response voice cycle with a streaming WebSocket pipeline using Cartesia or Deepgram for sub-600ms voice-to-voice interaction with interrupt handling.
 
-3. Interactive AI Canvas Generator. Extend the AI response format to emit canvas drawing commands such as draw_grid, plot_line, highlight_error, and draw_triangle, enabling the AI to illustrate concepts directly on the canvas in real-time.
+3. **Interactive AI Canvas Generator.** Extend the AI response format to emit canvas drawing commands (draw_grid, plot_line, highlight_error, draw_triangle) enabling the AI to illustrate concepts directly on the canvas in real-time.
 
-4. Audio-Synchronized Replays. Record WebRTC audio streams alongside rrweb DOM events so that teachers can hear a student's voice and hesitation synchronized frame-by-frame with their canvas interactions.
+4. **Audio-Synchronized Replays.** Record WebRTC audio streams alongside rrweb DOM events so teachers can hear a student's voice and hesitation synchronized frame-by-frame with their canvas interactions.
 
-5. Multiplayer Socratic Classroom. Implement Tldraw collaborative sync via Yjs and WebSockets, allowing a teacher to spectate up to 30 student canvases simultaneously and push problems to all students at once.
+5. **Multiplayer Socratic Classroom.** Implement Tldraw collaborative sync via Yjs and WebSockets, allowing a teacher to spectate up to 30 student canvases simultaneously and push problems to all students at once.
 
-6. Gamified 3D Knowledge Graph. Replace the tree list with an interactive Three.js or React Flow constellation where skill nodes glow in mastery colors and emit particle beams along dependency paths.
+6. **Gamified 3D Knowledge Graph.** Replace the tree list with an interactive Three.js or React Flow constellation where skill nodes glow in mastery colors and emit particle beams along dependency paths.
 
 ---
 
 ## Contributing
 
-Contributions are welcome. Open an issue at github.com/shashank-tomar0/ai-tutor/issues to report bugs or suggest features. The PRD in the repository root documents the full planned feature set. The development commands are standard Next.js:
+Contributions are welcome and encouraged. To contribute:
+
+1. Open an issue at [github.com/shashank-tomar0/ai-tutor/issues](https://github.com/shashank-tomar0/ai-tutor/issues) to report bugs or suggest features.
+2. Review the PRD.md in the repository root for the full planned feature set.
+3. Submit pull requests with clear descriptions of changes.
+
+Development commands:
 
 ```bash
 npm run dev       # Development server on port 3000
-npm run build     # Production build with type checking
+npm run build     # Production build with TypeScript type checking
 npm run lint      # ESLint code quality check
 ```
 
@@ -362,3 +576,9 @@ npm run lint      # ESLint code quality check
 ## License
 
 MIT. Education should be accessible to everyone.
+
+---
+
+<p align="center">
+  <strong>Built with Next.js 16, Tldraw, Groq SDK, Supabase, rrweb, Recharts, and Framer Motion</strong>
+</p>

@@ -1,0 +1,38 @@
+[
+  { "type": "cameraUpdate", "width": 800, "height": 600, "x": 0, "y": 0 },
+
+  { "type": "text", "id": "t0", "x": 160, "y": 10, "text": "NEWTON — COGNITIVE TUTORING FLOW", "fontSize": 20, "strokeColor": "#1e1e1e" },
+
+  { "type": "rectangle", "id": "s1", "x": 280, "y": 60, "width": 240, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#a5d8ff", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Student enters classroom", "fontSize": 14 } },
+
+  { "type": "arrow", "id": "a1", "x": 400, "y": 115, "width": 0, "height": 25, "points": [[0,0],[0,25]], "endArrowhead": "arrow" },
+
+  { "type": "rectangle", "id": "s2", "x": 280, "y": 140, "width": 240, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#a5d8ff", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Canvas draw / Type / Speak", "fontSize": 14 } },
+
+  { "type": "arrow", "id": "a2", "x": 400, "y": 195, "width": 0, "height": 25, "points": [[0,0],[0,25]], "endArrowhead": "arrow" },
+
+  { "type": "rectangle", "id": "s3", "x": 280, "y": 220, "width": 240, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#d0bfff", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "API: Parse canvas + Groq", "fontSize": 14 } },
+
+  { "type": "arrow", "id": "a3", "x": 400, "y": 275, "width": 0, "height": 25, "points": [[0,0],[0,25]], "endArrowhead": "arrow" },
+
+  { "type": "rectangle", "id": "s4", "x": 260, "y": 300, "width": 280, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#fff3bf", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Socratic Engine: Llama 3.3-70B", "fontSize": 14 } },
+
+  { "type": "arrow", "id": "a4", "x": 400, "y": 355, "width": 0, "height": 25, "points": [[0,0],[0,25]], "endArrowhead": "arrow" },
+
+  { "type": "diamond", "id": "d1", "x": 300, "y": 390, "width": 200, "height": 80, "backgroundColor": "#ffd8a8", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Struggling?", "fontSize": 14 } },
+
+  { "type": "text", "id": "d1y", "x": 260, "y": 425, "text": "YES", "fontSize": 12, "strokeColor": "#ef4444" },
+  { "type": "text", "id": "d1n", "x": 530, "y": 425, "text": "NO", "fontSize": 12, "strokeColor": "#22c55e" },
+
+  { "type": "arrow", "id": "a5y", "x": 300, "y": 430, "width": -80, "height": 40, "points": [[0,0],[-80,0],[-80,40]], "endArrowhead": "arrow", "strokeColor": "#ef4444", "strokeWidth": 2 },
+  { "type": "arrow", "id": "a5n", "x": 500, "y": 430, "width": 80, "height": 40, "points": [[0,0],[80,0],[80,40]], "endArrowhead": "arrow", "strokeColor": "#22c55e", "strokeWidth": 2 },
+
+  { "type": "rectangle", "id": "s5s", "x": 130, "y": 480, "width": 220, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#ffc9c9", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Socratic questioning", "fontSize": 14 } },
+  { "type": "rectangle", "id": "s5t", "x": 450, "y": 480, "width": 220, "height": 55, "roundness": { "type": 3 }, "backgroundColor": "#b2f2bb", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Teach with analogy", "fontSize": 14 } },
+
+  { "type": "arrow", "id": "a6s", "x": 240, "y": 535, "width": 0, "height": 20, "points": [[0,0],[0,20]], "endArrowhead": "arrow" },
+  { "type": "arrow", "id": "a6t", "x": 560, "y": 535, "width": 0, "height": 20, "points": [[0,0],[0,20]], "endArrowhead": "arrow" },
+
+  { "type": "rectangle", "id": "s6s", "x": 130, "y": 555, "width": 220, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#fff3bf", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Log intervention", "fontSize": 12 } },
+  { "type": "rectangle", "id": "s6t", "x": 450, "y": 555, "width": 220, "height": 45, "roundness": { "type": 3 }, "backgroundColor": "#fff3bf", "fillStyle": "solid", "strokeColor": "#1e1e1e", "label": { "text": "Canvas + TTS output", "fontSize": 12 } }
+]
