@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getOpenRouterKey } from '@/utils/server-env';
 
 // OpenRouter's OpenAI-compatible text-to-speech endpoint.
 const OPENROUTER_TTS_URL = 'https://openrouter.ai/api/v1/audio/speech';
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   try {
     const { text, voice = DEFAULT_VOICE } = await req.json();
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = getOpenRouterKey();
     if (!apiKey) {
       return NextResponse.json({ error: 'OpenRouter API key not configured', fallback: true }, { status: 200 });
     }

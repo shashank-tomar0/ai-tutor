@@ -17,38 +17,27 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadData() {
+      // Auth disabled for testing — anyone can view the dashboard as a teacher.
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/login');
-        return;
-      }
-
-      // Check role authorization
-      let userRole = 'student';
-      try {
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (data?.role) {
-          userRole = data.role;
-        } else {
-          // Check localStorage fallback
+      let userRole = 'teacher';
+      if (session) {
+        try {
+          const { data } = await supabase
+            .from('user_profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+          if (data?.role) {
+            userRole = data.role;
+          } else {
+            const fallbackRole = localStorage.getItem(`newton_role_${session.user.id}`);
+            if (fallbackRole) userRole = fallbackRole;
+          }
+        } catch (err) {
+          console.warn("DB profiles access failed, falling back to localStorage role mapping.");
           const fallbackRole = localStorage.getItem(`newton_role_${session.user.id}`);
           if (fallbackRole) userRole = fallbackRole;
         }
-      } catch (err) {
-        console.warn("DB profiles access failed, falling back to localStorage role mapping.");
-        const fallbackRole = localStorage.getItem(`newton_role_${session.user.id}`);
-        if (fallbackRole) userRole = fallbackRole;
-      }
-
-      if (userRole !== 'teacher') {
-        alert("ACCESS DENIED: The teacher dashboard is reserved for authorized educator profiles.");
-        router.push('/classroom');
-        return;
       }
       setRole(userRole);
 

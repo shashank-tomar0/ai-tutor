@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Tldraw, Editor } from 'tldraw';
+import { Tldraw, Editor, toRichText, createShapeId } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { Mic, MicOff, Brain, Loader2, ArrowLeft, Send, Volume2, VolumeX, Database, HelpCircle, ChevronLeft, ChevronRight, Sparkles, Target, BookOpen, Award, CheckCircle } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
+
+// Hide tldraw's built-in top-left menu / page chrome so its buttons don't collide
+// with Newton's floating controls. Drawing tools (bottom) + style panel are kept.
+const TLDRAW_COMPONENTS = { MenuPanel: null, PageMenu: null } as any;
 
 // ============================================================================
 // SKILL TREE TYPES
@@ -54,13 +58,10 @@ export default function CanvasPage() {
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
 
   useEffect(() => {
-    // Check Authentication
+    // Auth disabled for testing — proceed as a guest if not signed in
+    // (skills/progress just won't load without a user; canvas + AI still work).
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push('/login');
-      } else {
-        setUser(session.user);
-      }
+      if (session) setUser(session.user);
     });
 
     synthesisRef.current = window.speechSynthesis;
@@ -97,10 +98,12 @@ export default function CanvasPage() {
 
   const fetchSkills = async () => {
     try {
+      // Skills are public; a userId only merges per-user progress. Load them even
+      // for guests (no auth) so the tree still shows during testing.
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
+      const userId = session?.user?.id;
 
-      const res = await fetch(`/api/skills?userId=${session.user.id}`);
+      const res = await fetch(`/api/skills${userId ? `?userId=${userId}` : ''}`);
       const data = await res.json();
       if (data.skills) {
         setSkillTree(data.skills);
@@ -318,6 +321,14 @@ export default function CanvasPage() {
 
     const queryText = textInput;
     setTextInput("");
+
+    // "solve", "give me the answer", "solve with elimination" → run the solver
+    // directly instead of letting the Socratic engine refuse to answer.
+    if (isSolveCommand(queryText)) {
+      solveOnCanvas(queryText);
+      return;
+    }
+
     isProcessingRef.current = true;
     setIsConnecting(true);
 
@@ -326,6 +337,9 @@ export default function CanvasPage() {
       formData.append('text', queryText);
       const shapes = editor ? editor.getCurrentPageShapes() : [];
       formData.append('shapes', JSON.stringify(shapes));
+      // Attach a picture of the canvas so the tutor can actually read it.
+      const canvasImage = await captureCanvasImage();
+      if (canvasImage) formData.append('canvasImage', canvasImage);
       if (selectedSkill) {
         formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name, description: selectedSkill.description }));
       }
@@ -337,6 +351,7 @@ export default function CanvasPage() {
 
       const data = await res.json();
       if (data.type === "ai_response") {
+        if (data.canvas_summary) console.log('👁️ Canvas seen:', data.canvas_summary);
         speakResponse(data.text);
         // Mark this as a successful skill interaction
         if (selectedSkill && data.is_struggling === false) {
@@ -394,6 +409,9 @@ export default function CanvasPage() {
               formData.append('file', audioBlob, 'audio.webm');
               const shapes = editor ? editor.getCurrentPageShapes() : [];
               formData.append('shapes', JSON.stringify(shapes));
+              // Attach a picture of the canvas so the tutor can actually read it.
+              const canvasImage = await captureCanvasImage();
+              if (canvasImage) formData.append('canvasImage', canvasImage);
               if (selectedSkill) {
                 formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name }));
               }
@@ -406,6 +424,9 @@ export default function CanvasPage() {
               const data = await res.json();
               if (data.transcript) {
                  console.log("🎤 Heard:", data.transcript);
+              }
+              if (data.canvas_summary) {
+                 console.log("👁️ Canvas seen:", data.canvas_summary);
               }
 
               if (data.type === "ai_response") {
@@ -493,6 +514,150 @@ export default function CanvasPage() {
   };
 
   // ============================================================================
+  // ANALYZE CANVAS — rasterize the whiteboard and let a vision model read it
+  // ============================================================================
+
+  // Returns a PNG data URL of everything on the canvas, or null if it's empty
+  // or export fails. Shared by the ANALYZE button and every voice/text turn so
+  // the tutor can always "see" what the student has written/drawn.
+  const captureCanvasImage = async (): Promise<string | null> => {
+    if (!editor) return null;
+    const ids = Array.from(editor.getCurrentPageShapeIds());
+    if (ids.length === 0) return null;
+    try {
+      let { url } = await editor.toImageDataUrl(ids, { format: 'png', background: true, scale: 1 });
+      // Vision models cap base64 image size (~4MB) — downscale if too large.
+      if (url.length > 3_500_000) {
+        ({ url } = await editor.toImageDataUrl(ids, { format: 'png', background: true, scale: 0.5 }));
+      }
+      return url;
+    } catch (err) {
+      console.warn('Canvas image export failed:', err);
+      return null;
+    }
+  };
+
+  const analyzeCanvas = async () => {
+    if (!editor) return;
+    if (isProcessingRef.current) return;
+
+    const canvasImage = await captureCanvasImage();
+    if (!canvasImage) {
+      speakResponse("Draw or write something on the canvas first, then I'll take a look.");
+      return;
+    }
+
+    isProcessingRef.current = true;
+    setIsConnecting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('canvasImage', canvasImage);
+      formData.append('text', 'Please look at my canvas and help me understand what I have written.');
+      if (selectedSkill) {
+        formData.append('skill', JSON.stringify({ id: selectedSkill.id, name: selectedSkill.name, description: selectedSkill.description }));
+      }
+
+      const res = await fetch('/api/chat-audio', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.type === 'ai_response') {
+        if (data.canvas_summary) console.log('👁️ Canvas seen:', data.canvas_summary);
+        speakResponse(data.text);
+        if (selectedSkill && data.is_struggling === false) {
+          updateSkillProgress(user?.id, selectedSkill.id, true);
+        }
+      } else {
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+      }
+    } catch (err) {
+      console.error('Failed to analyze canvas', err);
+      isProcessingRef.current = false;
+      setIsConnecting(false);
+    }
+  };
+
+  // Write a block of solution text onto the canvas, just below the existing work.
+  const writeSolutionOnCanvas = (text: string) => {
+    if (!editor || !text) return;
+    const bounds = editor.getCurrentPageBounds();
+    const x = bounds ? bounds.minX : 200;
+    const y = bounds ? bounds.maxY + 60 : 200;
+    const id = createShapeId();
+    editor.createShape({
+      id,
+      type: 'text',
+      x,
+      y,
+      props: {
+        richText: toRichText(text),
+        color: 'blue',
+        w: 520,
+        autoSize: false,
+        textAlign: 'start',
+      },
+    });
+    // Bring the solution into view — on an infinite canvas it can otherwise land
+    // below the visible viewport and look like nothing happened.
+    try {
+      editor.select(id);
+      editor.zoomToSelection({ animation: { duration: 400 } });
+      editor.selectNone();
+    } catch (e) {
+      console.warn('Could not zoom to solution:', e);
+    }
+  };
+
+  // Detect short chat messages that are really "just solve it" commands, so the
+  // student isn't stonewalled by the Socratic engine when they explicitly ask.
+  const isSolveCommand = (text: string) => {
+    const t = text.trim().toLowerCase();
+    return t.length <= 48 && /\b(solve|solution|answer)\b/.test(t) && !/[=+\-*/^]|\d/.test(t);
+  };
+
+  // SOLVE — read the problem on the canvas, get a full worked solution, write it
+  // onto the whiteboard and speak a short summary. (Gives the answer, unlike ANALYZE.)
+  const solveOnCanvas = async (hint?: string) => {
+    if (!editor) return;
+    if (isProcessingRef.current) return;
+
+    const canvasImage = await captureCanvasImage();
+    if (!canvasImage) {
+      speakResponse("Write a problem on the canvas first, then I'll solve it.");
+      return;
+    }
+
+    isProcessingRef.current = true;
+    setIsConnecting(true);
+
+    try {
+      const res = await fetch('/api/solve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          canvasImage,
+          hint: hint || null,
+          skill: selectedSkill ? { id: selectedSkill.id, name: selectedSkill.name } : null,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.solution_text) {
+        console.log('🧮 Solved:', data.problem);
+        writeSolutionOnCanvas(data.solution_text);
+        speakResponse(data.spoken_summary || 'I have written the full solution on your canvas.');
+      } else {
+        speakResponse("I couldn't find a clear problem to solve. Try writing it a bit larger.");
+      }
+    } catch (err) {
+      console.error('Failed to solve canvas', err);
+      isProcessingRef.current = false;
+      setIsConnecting(false);
+    }
+  };
+
+  // ============================================================================
   // SKILL PROGRESS UPDATE
   // ============================================================================
 
@@ -515,11 +680,12 @@ export default function CanvasPage() {
 
   return (
     <div style={{ position: 'fixed', inset: 0 }} className="bg-white font-sans text-black">
-      <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" />
+      <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" components={TLDRAW_COMPONENTS} />
 
-      {/* Top Controls Bar */}
-      <div className="absolute top-4 left-4 right-4 z-50 flex justify-between items-center pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-2">
+      {/* Top Controls Bar — all Newton controls kept on the left (wrapping) so they
+          never overlap each other or tldraw's right-side style panel. */}
+      <div className="absolute top-4 left-4 right-4 z-50 flex flex-wrap items-start gap-2 pointer-events-none">
+        <div className="pointer-events-auto flex flex-wrap items-center gap-2">
           <Link href="/" className="flex items-center space-x-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <ArrowLeft size={14} />
             <span>INDEX</span>
@@ -534,6 +700,28 @@ export default function CanvasPage() {
           >
             <Target size={14} />
             <span>SKILLS</span>
+          </button>
+
+          {/* Analyze Canvas — vision model reads handwriting/diagrams */}
+          <button
+            onClick={analyzeCanvas}
+            disabled={isConnecting}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all border-2 border-black bg-white text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-black hover:text-white active:shadow-none active:translate-x-0.5 active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Let Newton read what you've written or drawn on the canvas"
+          >
+            {isConnecting ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+            <span>ANALYZE</span>
+          </button>
+
+          {/* Solve Canvas — writes the full worked solution onto the whiteboard */}
+          <button
+            onClick={() => solveOnCanvas()}
+            disabled={isConnecting}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all border-2 border-black bg-black text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-white hover:text-black active:shadow-none active:translate-x-0.5 active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Let Newton solve the problem and write the answer on the canvas"
+          >
+            {isConnecting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+            <span>SOLVE</span>
           </button>
         </div>
 
@@ -653,8 +841,9 @@ export default function CanvasPage() {
         </div>
       )}
 
-      {/* Bottom Toolbar & Text Input */}
-      <div className="z-50 absolute bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-[680px]">
+      {/* Bottom Toolbar & Text Input — raised above tldraw's drawing toolbar so they
+          don't overlap at the bottom-center. */}
+      <div className="z-50 absolute bottom-24 left-1/2 -translate-x-1/2 w-[95%] max-w-[680px]">
         <div className="bg-white border-2 border-black p-2 px-4 rounded-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col md:flex-row items-center gap-3">
           <div className="flex items-center space-x-2.5 pl-1 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center space-x-2">
