@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { ArrowLeft, MicOff, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -51,7 +51,7 @@ export default function CanvasPage() {
       const synth = window.speechSynthesis;
       const u = new SpeechSynthesisUtterance('');
       u.volume = 0;
-      try { synth.speak(u); synth.cancel(); } catch (_) {}
+      try { synth.speak(u); synth.cancel(); } catch (_e) {}
       window.removeEventListener('click', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
     };
@@ -261,6 +261,79 @@ export default function CanvasPage() {
   // Audio element reference for cloud TTS
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  const fallbackSpeechSynth = (text: string, onFinish: () => void) => {
+    try {
+      const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+      if (!synth) { onFinish(); return; }
+
+      // Fix Chrome stuck synthesis state
+      if (synth.speaking || synth.pending) {
+        synth.cancel();
+      }
+      if (synth.paused) {
+        synth.resume();
+      }
+
+      // Clean text of markdown formatting (asterisks, hashtags, backticks, LaTeX)
+      const cleanText = text
+        .replace(/[*#_`~\\$%\[\]]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      if (!cleanText) { onFinish(); return; }
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+
+      // Select available voice
+      const voices = synth.getVoices();
+      if (voices && voices.length > 0) {
+        const preferredVoice =
+          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David') || v.name.includes('Samantha') || v.name.includes('Male') || v.name.includes('Female'))) ||
+          voices.find(v => v.lang.startsWith('en')) ||
+          voices[0];
+        if (preferredVoice) utterance.voice = preferredVoice;
+      }
+
+      let isFinished = false;
+      const done = () => {
+        if (isFinished) return;
+        isFinished = true;
+        onFinish();
+      };
+
+      utterance.onend = done;
+      utterance.onerror = (e) => {
+        console.warn('SpeechSynthesis error:', e);
+        done();
+      };
+
+      // Periodic resume to bypass Chrome 15-second SpeechSynthesis silence bug
+      const resumeTimer = setInterval(() => {
+        if (!synth.speaking || isFinished) {
+          clearInterval(resumeTimer);
+        } else {
+          synth.resume();
+        }
+      }, 2500);
+
+      setTimeout(() => {
+        try {
+          synth.speak(utterance);
+        } catch (err) {
+          console.warn('synth.speak failed:', err);
+          clearInterval(resumeTimer);
+          done();
+        }
+      }, 50);
+    } catch (err) {
+      console.warn('fallbackSpeechSynth catch:', err);
+      onFinish();
+    }
+  };
+
   const speakText = useCallback(async (text: string) => {
     setCaptionsText(text);
     setCaptionsVisible(true);
@@ -324,79 +397,6 @@ export default function CanvasPage() {
 
     fallbackSpeechSynth(text, finishSpeaking);
   }, [voiceType]);
-
-  const fallbackSpeechSynth = (text: string, onFinish: () => void) => {
-    try {
-      const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-      if (!synth) { onFinish(); return; }
-
-      // Fix Chrome stuck synthesis state
-      if (synth.speaking || synth.pending) {
-        synth.cancel();
-      }
-      if (synth.paused) {
-        synth.resume();
-      }
-
-      // Clean text of markdown formatting (asterisks, hashtags, backticks, LaTeX)
-      const cleanText = text
-        .replace(/[*#_`~\\$%\[\]]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      if (!cleanText) { onFinish(); return; }
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-
-      // Select available voice
-      const voices = synth.getVoices();
-      if (voices && voices.length > 0) {
-        const preferredVoice =
-          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David') || v.name.includes('Samantha') || v.name.includes('Male') || v.name.includes('Female'))) ||
-          voices.find(v => v.lang.startsWith('en')) ||
-          voices[0];
-        if (preferredVoice) utterance.voice = preferredVoice;
-      }
-
-      let isFinished = false;
-      const done = () => {
-        if (isFinished) return;
-        isFinished = true;
-        onFinish();
-      };
-
-      utterance.onend = done;
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
-        done();
-      };
-
-      // Periodic resume interval to bypass Chrome 15-second SpeechSynthesis silence bug
-      const resumeTimer = setInterval(() => {
-        if (!synth.speaking || isFinished) {
-          clearInterval(resumeTimer);
-        } else {
-          synth.resume();
-        }
-      }, 2500);
-
-      setTimeout(() => {
-        try {
-          synth.speak(utterance);
-        } catch (err) {
-          console.warn('synth.speak failed:', err);
-          clearInterval(resumeTimer);
-          done();
-        }
-      }, 50);
-    } catch (err) {
-      console.warn('fallbackSpeechSynth catch:', err);
-      onFinish();
-    }
-  };
 
   // ==========================================================================
   // SEND MESSAGE TO AI (with full canvas & skill context)

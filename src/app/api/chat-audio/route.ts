@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 import { createClient } from '@supabase/supabase-js';

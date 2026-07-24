@@ -21,11 +21,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Build the tree
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const skillMap = new Map<string, any>();
     skills?.forEach(skill => {
       skillMap.set(skill.id, { ...skill, children: [], mastery_level: 0, attempts: 0 });
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const roots: any[] = [];
     skills?.forEach(skill => {
       const node = skillMap.get(skill.id)!;
