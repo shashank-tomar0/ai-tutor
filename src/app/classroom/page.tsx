@@ -74,6 +74,30 @@ export default function CanvasPage() {
     setEditor(editor);
   }, []);
 
+  // Capture canvas as base64 PNG (for vision/handwriting analysis)
+  const captureCanvasImage = useCallback(async (): Promise<string | null> => {
+    if (!editor) return null;
+    try {
+      const shapeIds = (editor as any).getCurrentPageShapeIds();
+      if (!shapeIds || shapeIds.size === 0) return null;
+      const { exportToBlob } = await import('tldraw');
+      const blob = await exportToBlob({
+        editor: editor as any,
+        ids: [...shapeIds],
+        format: 'png',
+        opts: { background: true, scale: 0.5 },
+      });
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.warn('Canvas export failed:', e);
+      return null;
+    }
+  }, [editor]);
+
   // Convert plain text to Tldraw v5 rich text format
   const toRichText = useCallback((text: string) => ({
     type: 'doc',
@@ -137,64 +161,99 @@ export default function CanvasPage() {
     return msg;
   }, []);
 
-  // ==========================================================================
-  // TTS (Text-to-Speech) — Browser SpeechSynthesis
-  // ==========================================================================
+  // Audio element reference for cloud TTS
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const speakText = useCallback((text: string) => {
-    // Shared function: speak via SpeechSynthesis, handle captions + cleanup
+  const speakText = useCallback(async (text: string) => {
     setCaptionsText(text);
     setCaptionsVisible(true);
     setCaptionsTyping(true);
 
-    if (voiceType === 'mute') {
-      const wc = text.split(' ').length;
-      setTimeout(() => setCaptionsTyping(false), wc * 60);
-      setTimeout(() => setCaptionsVisible(false), wc * 60 + 2000);
+    // Failsafe timeout: guarantee processing lock is released after max 10 seconds
+    const safetyTimeout = setTimeout(() => {
+      setCaptionsTyping(false);
+      setTimeout(() => setCaptionsVisible(false), 1500);
       isProcessingRef.current = false;
       setIsConnecting(false);
+    }, 10000);
+
+    const finishSpeaking = () => {
+      clearTimeout(safetyTimeout);
+      setCaptionsTyping(false);
+      setTimeout(() => setCaptionsVisible(false), 1500);
+      isProcessingRef.current = false;
+      setIsConnecting(false);
+    };
+
+    if (voiceType === 'mute') {
+      finishSpeaking();
       return;
     }
 
-    // Chrome SpeechSynthesis can only run in a user-gesture context.
-    // The user clicking START or pressing Send provides that context.
+    // Try cloud TTS first
     try {
-      const synth = window.speechSynthesis;
-      if (!synth) { isProcessingRef.current = false; setIsConnecting(false); return; }
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice: voiceType === 'human' ? 'alloy' : 'echo' })
+      });
+
+      if (res.ok && res.headers.get('Content-Type')?.includes('audio')) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        currentAudioRef.current = audio;
+        audio.onended = finishSpeaking;
+        audio.onerror = () => fallbackSpeechSynth(text, finishSpeaking);
+        await audio.play();
+        return;
+      }
+    } catch {
+      // Fall back to Web Speech API
+    }
+
+    fallbackSpeechSynth(text, finishSpeaking);
+  }, [voiceType]);
+
+  const fallbackSpeechSynth = (text: string, onFinish: () => void) => {
+    try {
+      const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+      if (!synth) { onFinish(); return; }
+
+      // Fix Chrome stuck synthesis bug
+      if (synth.speaking || synth.pending) {
+        synth.cancel();
+      }
+      if (synth.paused) {
+        synth.resume();
+      }
 
       const utterance = new SpeechSynthesisUtterance(text);
-
-      // Pick a good voice
       const voices = synth.getVoices();
-      utterance.voice = voices.find(v => v.name.includes('David') || v.name.includes('Male'))
-        || voices.find(v => v.name.includes('Google UK English Male'))
+      utterance.voice = voices.find(v => v.name.includes('Google UK English Male') || v.name.includes('David') || v.name.includes('Male'))
         || voices.find(v => v.lang.startsWith('en')) || null;
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
-      utterance.volume = 1.0;
 
-      utterance.onend = () => {
-        setCaptionsTyping(false);
-        setTimeout(() => setCaptionsVisible(false), 2000);
-        isProcessingRef.current = false;
-        setIsConnecting(false);
-      };
-      utterance.onerror = () => {
-        isProcessingRef.current = false;
-        setIsConnecting(false);
-      };
+      utterance.onend = onFinish;
+      utterance.onerror = onFinish;
 
-      // Cancel previous speech first
-      if (synth.speaking) synth.cancel();
-
-      // Use setTimeout(0) to let cancel settle before speaking (Chrome quirk)
-      setTimeout(() => { synth.speak(utterance); }, synth.speaking ? 50 : 0);
-    } catch (err) {
-      console.error('SpeechSynthesis failed:', err);
-      isProcessingRef.current = false;
-      setIsConnecting(false);
+      setTimeout(() => {
+        try {
+          synth.speak(utterance);
+        } catch {
+          onFinish();
+        }
+      }, 50);
+    } catch {
+      onFinish();
     }
-  }, [voiceType]);
+  };
 
   // ==========================================================================
   // SEND MESSAGE TO AI (with full canvas & skill context)
