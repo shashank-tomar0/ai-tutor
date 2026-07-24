@@ -34,6 +34,7 @@ export default function CanvasPage() {
   const rrwebEventsRef = useRef<any[]>([]);
   const synthesisRef = useRef<SpeechSynthesis | null>(null);
   const msgIdCounter = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // ==========================================================================
   // Load SpeechSynthesis voices (needed for speak() in Chrome)
@@ -194,6 +195,40 @@ export default function CanvasPage() {
       console.warn('Could not clear canvas:', e);
     }
   }, [editor]);
+
+  // Handle assignment image upload
+  const handleAssignmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editor) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const src = event.target?.result as string;
+      if (!src) return;
+
+      try {
+        const bounds = (editor as any).getViewportPageBounds();
+        (editor as any).createShapes([
+          {
+            type: 'image',
+            x: bounds.x + 40,
+            y: bounds.y + 40,
+            props: {
+              w: 480,
+              h: 360,
+              src: src,
+            },
+          },
+        ]);
+        const announcement = "I've imported your assignment onto the canvas! Circle or point to any problem you'd like to work on.";
+        addMessage('ai', announcement);
+        speakText(announcement);
+      } catch (err) {
+        console.warn('Could not render imported assignment image:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // ==========================================================================
   // MESSAGES
@@ -566,6 +601,23 @@ export default function CanvasPage() {
             <span className="max-w-[120px] truncate">
               {selectedSkill ? selectedSkill.name : 'SKILLS & PATH'}
             </span>
+          </button>
+
+          {/* IMPORT ASSIGNMENT BUTTON */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleAssignmentUpload}
+            accept="image/*,.pdf"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Import assignment worksheet or image"
+            className="flex items-center gap-1.5 border-2 border-black bg-white text-black px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] hover:bg-black hover:text-white transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-px active:translate-y-px"
+          >
+            <span>📥</span>
+            <span className="hidden sm:inline">IMPORT ASSIGNMENT</span>
           </button>
         </div>
 
