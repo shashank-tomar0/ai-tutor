@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { ArrowLeft, MicOff, BookOpen, Target, Sparkles } from 'lucide-react';
+import { ArrowLeft, MicOff, BookOpen } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -83,22 +83,26 @@ export default function CanvasPage() {
     })),
   }), []);
 
-  // Write AI explanation to the canvas as text shapes
-  const writeToCanvas = useCallback(async (text: string) => {
-    if (!editor) return;
+  // Write structured AI visual content (steps/equations/diagrams) to canvas
+  // Only called when AI explicitly provides canvas_content — NOT for raw chat text
+  const writeToCanvas = useCallback(async (lines: string[]) => {
+    if (!editor || !lines || lines.length === 0) return;
     try {
-      const center = (editor as any).getViewportPageBounds();
-      const lines = text.split('\n').filter(Boolean);
+      const bounds = (editor as any).getViewportPageBounds();
+      // Place content at bottom-left of current viewport, away from center work area
+      const startX = bounds.x + 40;
+      const startY = bounds.y + bounds.h - (lines.length * 36) - 60;
+
       const shapes = lines.map((line: string, i: number) => ({
         type: 'text' as const,
-        x: center.x + 40,
-        y: center.y + 40 + (i * 30),
+        x: startX,
+        y: startY + (i * 36),
         props: {
           richText: toRichText(line),
-          color: 'black' as const,
-          size: 'm' as const,
-          font: 'sans' as const,
-          w: Math.min(line.length * 10, 450),
+          color: 'blue' as const,   // Blue so students can distinguish AI content from their own
+          size: 's' as const,
+          font: 'mono' as const,
+          w: Math.min(Math.max(line.length * 9, 200), 500),
           scale: 1,
           autoSize: true,
           textAlign: 'start' as const,
@@ -106,9 +110,22 @@ export default function CanvasPage() {
       }));
       (editor as any).createShapes(shapes);
     } catch (e) {
-      console.warn("Could not write text shape to canvas:", e);
+      console.warn('Could not write AI canvas content:', e);
     }
   }, [editor, toRichText]);
+
+  // Clear all shapes from the canvas
+  const clearCanvas = useCallback(() => {
+    if (!editor) return;
+    try {
+      const allShapeIds = (editor as any).getCurrentPageShapeIds();
+      if (allShapeIds.size > 0) {
+        (editor as any).deleteShapes([...allShapeIds]);
+      }
+    } catch (e) {
+      console.warn('Could not clear canvas:', e);
+    }
+  }, [editor]);
 
   // ==========================================================================
   // MESSAGES
@@ -202,7 +219,10 @@ export default function CanvasPage() {
       if (data.type === "ai_response") {
         const aiText = data.text || "I'm listening. Tell me more.";
         addMessage('ai', aiText);
-        writeToCanvas(aiText);
+        // Only draw on canvas when AI provides structured visual content (steps/equations/diagrams)
+        if (data.canvas_content && Array.isArray(data.canvas_content) && data.canvas_content.length > 0) {
+          writeToCanvas(data.canvas_content);
+        }
         speakText(aiText);
       } else {
         isProcessingRef.current = false;
@@ -273,7 +293,10 @@ export default function CanvasPage() {
               if (data.type === "ai_response") {
                 const aiText = data.text || "I'm listening.";
                 addMessage('ai', aiText);
-                writeToCanvas(aiText);
+                // Only draw on canvas when AI provides structured visual content
+                if (data.canvas_content && Array.isArray(data.canvas_content) && data.canvas_content.length > 0) {
+                  writeToCanvas(data.canvas_content);
+                }
                 speakText(aiText);
               } else {
                 isProcessingRef.current = false;
@@ -392,6 +415,16 @@ export default function CanvasPage() {
               <BookOpen size={14} />
               <span>{selectedSkill ? selectedSkill.name : 'SKILLS & PATH'}</span>
             </button>
+
+            {/* CLEAR CANVAS BUTTON */}
+            <button
+              onClick={clearCanvas}
+              title="Clear canvas"
+              className="flex items-center gap-2 bg-white border border-black/40 px-3 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]"
+            >
+              <span>🗑</span>
+              <span className="hidden sm:inline">CANVAS</span>
+            </button>
           </div>
 
           {/* Session status badge */}
@@ -430,6 +463,8 @@ export default function CanvasPage() {
           onToggleSession={toggleSession}
           voiceType={voiceType}
           onVoiceTypeChange={setVoiceType}
+          onClearChat={() => setMessages([])}
+          onClearCanvas={clearCanvas}
         />
       </div>
 

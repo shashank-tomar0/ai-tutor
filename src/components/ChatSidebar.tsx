@@ -29,6 +29,8 @@ export interface ChatSidebarProps {
   onToggleSession: () => void;
   voiceType: 'human' | 'system' | 'mute';
   onVoiceTypeChange: (type: 'human' | 'system' | 'mute') => void;
+  onClearChat?: () => void;
+  onClearCanvas?: () => void;
 }
 
 // ============================================================================
@@ -64,6 +66,8 @@ export default function ChatSidebar({
   onToggleSession,
   voiceType,
   onVoiceTypeChange,
+  onClearChat,
+  onClearCanvas,
 }: ChatSidebarProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
@@ -217,12 +221,29 @@ export default function ChatSidebar({
           </button>
         </div>
 
-        {/* Voice type selector */}
-        <div className="flex items-center gap-1 border border-black/10 rounded-full p-0.5 px-1.5 w-fit">
-          <span className="text-[7px] font-bold uppercase tracking-[0.15em] text-black/30 pr-1 mr-0.5 border-r border-black/10">
-            Voice
-          </span>
-          {(['human', 'system', 'mute'] as const).map(renderVoiceButton)}
+        {/* Voice type selector + Clear buttons */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 border border-black/10 rounded-full p-0.5 px-1.5 flex-1 min-w-0">
+            <span className="text-[7px] font-bold uppercase tracking-[0.15em] text-black/30 pr-1 mr-0.5 border-r border-black/10">
+              Voice
+            </span>
+            {(['human', 'system', 'mute'] as const).map(renderVoiceButton)}
+          </div>
+
+          {/* Clear Chat */}
+          {onClearChat && (
+            <button
+              onClick={() => {
+                if (messages.length === 0) return;
+                if (confirm('Clear all chat messages?')) onClearChat();
+              }}
+              title="Clear chat"
+              className="flex items-center gap-1 px-2 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest border border-black/20 bg-white hover:bg-red-500 hover:text-white hover:border-red-500 transition-all flex-shrink-0"
+            >
+              <span>🗑</span>
+              <span>CHAT</span>
+            </button>
+          )}
         </div>
       </div>
 

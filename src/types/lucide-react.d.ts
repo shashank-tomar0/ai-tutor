@@ -33,4 +33,12 @@ declare module 'lucide-react' {
   export const Shield: Icon;
   export const CheckCircle: Icon;
   export const CheckCircle2: Icon;
+  export const Flame: Icon;
+  export const Trophy: Icon;
+  export const TrendingUp: Icon;
+  export const ChevronDown: Icon;
+  export const AlertCircle: Icon;
+  export const Clock: Icon;
+  export const X: Icon;
+  export const RotateCcw: Icon;
 }
