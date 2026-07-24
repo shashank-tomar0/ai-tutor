@@ -90,56 +90,12 @@ Newton was designed from day one to solve all four problems -- by combining voic
 
 ## Architecture
 
-> **Open the full interactive diagram:** [`public/newton-architecture.excalidraw`](public/newton-architecture.excalidraw)
+> **View the interactive Excalidraw diagram:** [`public/newton-architecture.excalidraw`](public/newton-architecture.excalidraw)
 > *(Open with [excalidraw.com](https://excalidraw.com) or the VS Code Excalidraw extension)*
 
-```
-+-------------------------------------------------------------------------------------------+
-|                                   CLIENT LAYER (Browser)                                   |
-|  +---------------------------------------------------------------------------------------+ |
-|  |  Next.js 16 (App Router) + React 19 + Tailwind CSS                                   | |
-|  |  +----------------+  +----------------+  +--------------+  +----------------+        | |
-|  |  | Tldraw v5      |  | rrweb DOM      |  | ChatSidebar  |  | CaptionsBar    |        | |
-|  |  | Infinite       |  | Session        |  | + Message    |  | + Animated     |        | |
-|  |  | Canvas         |  | Recording      |  | History      |  | Speech Text    |        | |
-|  |  +----------------+  +----------------+  +--------------+  +----------------+        | |
-|  |  +----------------+  +----------------+  +--------------+                               | |
-|  |  | Web Speech API |  | VAD Audio      |  | Recharts     |                               | |
-|  |  | (Free)         |  | Analyzer       |  | Charts       |                               | |
-|  |  +----------------+  +----------------+  +--------------+                               | |
-|  +---------------------------------------------------------------------------------------+ |
-+-------------------------------------------------------------------------------------------+
-|                         API LAYER (Next.js Route Handlers)                                 |
-|  +---------------------------------------------------------------------------------------+ |
-|  |  POST /api/chat-audio  -- Voice (VAD to Whisper) + Canvas + Text to Response          | |
-|  |  POST /api/chat         -- Text + Canvas Shapes to Socratic Response                   | |
-|  |  GET  /api/skills       -- Skill tree with user mastery progress                       | |
-|  |  GET  /api/skills/recommendations  -- Next skill recommendation                        | |
-|  |  POST /api/skills/update  -- Update user mastery after session                         | |
-|  +---------------------------------------------------------------------------------------+ |
-+-------------------------------------------------------------------------------------------+
-|                              LLM AND AI INFERENCE LAYER                                    |
-|  +---------------------------------------------------------------------------------------+ |
-|  |  Groq Llama-3.3-70b (Socratic Engine)                                                 | |
-|  |    -> Canvas-aware reasoning (reads shapes, text, geometry, diagrams)                  | |
-|  |    -> Struggle detection, intervention logging                                         | |
-|  |    -> All-subject tutoring (math, science, CS, humanities)                             | |
-|  |                                                                                         | |
-|  |  Groq Whisper (Speech-to-Text)                                                         | |
-|  |  Browser SpeechSynthesis (Text-to-Speech, free, always works)                          | |
-|  +---------------------------------------------------------------------------------------+ |
-+-------------------------------------------------------------------------------------------+
-|                                  DATA LAYER (Supabase)                                     |
-|  +---------------------------------------------------------------------------------------+ |
-|  |  Auth (Google OAuth + Email)  ->  user_profiles (RBAC)                                 | |
-|  |  session_replays (rrweb events + canvas snapshots)                                     | |
-|  |  interventions (live struggle feed with Realtime push)                                 | |
-|  |  skills (self-referencing tree, 30+ seeded across 7 subjects)                          | |
-|  |  user_skills (per-user mastery 0.00-1.00, attempts, recency)                          | |
-|  |  skill_prerequisites (DAG for learning dependencies)                                   | |
-|  +---------------------------------------------------------------------------------------+ |
-+-------------------------------------------------------------------------------------------+
-```
+<p align="center">
+  <img src="public/newton-architecture.svg" alt="Newton System Architecture Diagram" width="100%" />
+</p>
 
 ### Architecture Decisions
 

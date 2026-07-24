@@ -38,6 +38,7 @@ export default function LandingPage() {
         {[
           { label: 'DASHBOARD', href: '/dashboard' },
           { label: 'CLASSROOM', href: '/classroom' },
+          { label: 'PROGRESS', href: '/progress' },
           { label: 'PHILOSOPHY', href: '#philosophy' },
           { label: 'FEATURES', href: '#features' },
           { label: 'PRICING', href: '#pricing' },
