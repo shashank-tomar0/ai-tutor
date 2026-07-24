@@ -386,61 +386,74 @@ export default function CanvasPage() {
   };
 
   // ==========================================================================
-  // RENDER — 2-column: Canvas (center) + Chat (right)
+  // RENDER — Header row (above canvas) + 2-col: Canvas | Chat
   // ==========================================================================
   return (
-    <div className="grid grid-cols-[1fr_420px] w-screen h-screen bg-white font-sans text-black overflow-hidden">
-      {/* ============ LEFT: Canvas + Captions ============ */}
-      <div className="relative flex flex-col min-w-0 overflow-hidden">
-        {/* Top Bar */}
-        <div className="absolute top-4 left-4 right-4 z-40 flex justify-between items-center pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-2">
-            <Link
-              href="/"
-              className="flex items-center gap-2 bg-white border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-black hover:text-white transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-            >
-              <ArrowLeft size={14} />
-              <span>INDEX</span>
-            </Link>
+    <div className="flex flex-col w-screen h-screen bg-white font-sans text-black overflow-hidden">
 
-            {/* SKILL TREE BUTTON */}
-            <button
-              onClick={() => setIsSkillTreeOpen(true)}
-              className={`flex items-center gap-2 border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] ${
-                selectedSkill
-                  ? 'bg-black text-white'
-                  : 'bg-white text-black hover:bg-black hover:text-white'
-              }`}
-            >
-              <BookOpen size={14} />
-              <span>{selectedSkill ? selectedSkill.name : 'SKILLS & PATH'}</span>
-            </button>
+      {/* ============ TOP HEADER BAR — always visible, never overlapped by TlDraw ============ */}
+      <div className="flex-shrink-0 border-b-4 border-black bg-white z-50 flex items-center justify-between px-4 py-2 gap-3">
 
-            {/* CLEAR CANVAS BUTTON */}
-            <button
-              onClick={clearCanvas}
-              title="Clear canvas"
-              className="flex items-center gap-2 bg-white border border-black/40 px-3 py-2 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)]"
-            >
-              <span>🗑</span>
-              <span className="hidden sm:inline">CANVAS</span>
-            </button>
-          </div>
+        {/* LEFT: Nav + skill controls */}
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 bg-white border-2 border-black px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] hover:bg-black hover:text-white transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-px active:translate-y-px"
+          >
+            <ArrowLeft size={11} />
+            <span>INDEX</span>
+          </Link>
 
-          {/* Session status badge */}
-          <div className="pointer-events-auto flex items-center gap-2">
-            <div className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider border-2 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
-              ${isSessionActive ? 'bg-black text-white border-black' : 'bg-white text-black/50 border-black/20'}`}>
-              <div className="flex items-center gap-1.5">
-                <div className={`w-2 h-2 rounded-full ${isSessionActive ? 'bg-green-400 animate-pulse' : 'bg-black/20'}`} />
-                {isSessionActive ? 'SESSION ACTIVE' : 'READY'}
-              </div>
-            </div>
-          </div>
+          {/* Skill Tree button */}
+          <button
+            onClick={() => setIsSkillTreeOpen(true)}
+            className={`flex items-center gap-1.5 border-2 border-black px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.15em] transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-px active:translate-y-px ${
+              selectedSkill
+                ? 'bg-black text-white'
+                : 'bg-white text-black hover:bg-black hover:text-white'
+            }`}
+          >
+            <BookOpen size={11} />
+            <span className="max-w-[120px] truncate">
+              {selectedSkill ? selectedSkill.name : 'SKILLS & PATH'}
+            </span>
+          </button>
         </div>
 
-        {/* Tldraw Canvas */}
-        <div className="flex-1 relative">
+        {/* CENTER: Newton wordmark */}
+        <div className="hidden md:flex flex-col items-center">
+          <span className="text-[13px] font-black uppercase tracking-[0.3em] leading-none">NEWTON</span>
+          <span className="text-[7px] font-bold uppercase tracking-[0.25em] text-black/40 mt-0.5">COGNITIVE CANVAS</span>
+        </div>
+
+        {/* RIGHT: Status badge + clear canvas */}
+        <div className="flex items-center gap-2">
+          {/* Live status */}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 border-2 transition-all text-[8px] font-black uppercase tracking-widest ${
+            isSessionActive
+              ? 'bg-black text-white border-black'
+              : 'bg-white text-black/40 border-black/20'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isSessionActive ? 'bg-green-400 animate-pulse' : 'bg-black/20'}`} />
+            {isSessionActive ? 'LIVE' : 'READY'}
+          </div>
+
+          {/* Clear canvas */}
+          <button
+            onClick={clearCanvas}
+            title="Clear all canvas shapes"
+            className="flex items-center gap-1.5 border-2 border-black/30 px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-black/50 hover:border-red-500 hover:text-red-500 hover:bg-red-50 transition-all"
+          >
+            🗑 CANVAS
+          </button>
+        </div>
+      </div>
+
+      {/* ============ MAIN CONTENT: Canvas (left) + Chat (right) ============ */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Canvas area */}
+        <div className="flex-1 relative min-w-0">
           <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" />
 
           {/* Captions Overlay */}
@@ -451,21 +464,21 @@ export default function CanvasPage() {
             voiceType={voiceType}
           />
         </div>
-      </div>
 
-      {/* ============ RIGHT: Chat Sidebar ============ */}
-      <div className="max-h-screen">
-        <ChatSidebar
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isProcessing={isConnecting}
-          isSessionActive={isSessionActive}
-          onToggleSession={toggleSession}
-          voiceType={voiceType}
-          onVoiceTypeChange={setVoiceType}
-          onClearChat={() => setMessages([])}
-          onClearCanvas={clearCanvas}
-        />
+        {/* Chat sidebar */}
+        <div className="w-[400px] flex-shrink-0 border-l-4 border-black overflow-hidden">
+          <ChatSidebar
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isProcessing={isConnecting}
+            isSessionActive={isSessionActive}
+            onToggleSession={toggleSession}
+            voiceType={voiceType}
+            onVoiceTypeChange={setVoiceType}
+            onClearChat={() => setMessages([])}
+            onClearCanvas={clearCanvas}
+          />
+        </div>
       </div>
 
       {/* ============ SKILL TREE SIDEBAR MODAL ============ */}
@@ -482,3 +495,4 @@ export default function CanvasPage() {
     </div>
   );
 }
+
