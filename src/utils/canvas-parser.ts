@@ -76,6 +76,23 @@ function normalise(raw: any): NormalisedShape {
   let text = str(props.text);
   const points: { x: number; y: number }[] = [];
 
+  // --- Tldraw v5 uses richText instead of text. Extract plain text from it.
+  if (!text && props.richText) {
+    try {
+      const rich = typeof props.richText === 'string' ? JSON.parse(props.richText) : props.richText;
+      if (rich?.content) {
+        text = rich.content
+          .map((block: any) =>
+            block?.content?.map((t: any) => t?.text || '').join('') || ''
+          )
+          .filter(Boolean)
+          .join('\n');
+      }
+    } catch (e) {
+      // richText parsing failed, leave text empty
+    }
+  }
+
   // --- Arrow: use start / end as the two key points ---
   if (type === 'arrow') {
     if (props.start && typeof props.start.x === 'number') {
