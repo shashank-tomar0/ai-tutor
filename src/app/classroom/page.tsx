@@ -126,12 +126,12 @@ export default function CanvasPage() {
     })),
   }), []);
 
-  // Write structured PenEcho-style visual shapes (boxes, sticky notes, diagrams) to canvas
+  // Write structured PenEcho-style visual shapes (boxes, tip cards, diagrams) to canvas
   const writeToCanvas = useCallback(async (content: any[]) => {
     if (!editor || !content || !Array.isArray(content) || content.length === 0) return;
     try {
       const bounds = (editor as any).getViewportPageBounds();
-      // Spatial placement: place AI shapes on right half of canvas, alongside student work
+      // Place AI shapes on right side of canvas alongside student work
       const startX = bounds.x + Math.max(bounds.w * 0.45, 400);
       let currentY = bounds.y + 60;
 
@@ -139,55 +139,63 @@ export default function CanvasPage() {
 
       content.forEach((item: any, i: number) => {
         const itemObj = typeof item === 'string' ? { type: 'box', text: item } : item;
-        const text = itemObj?.text || String(item);
+        const rawText = itemObj?.text || String(item);
         const itemType = itemObj?.type || 'box';
         const color = itemObj?.color || (i === 0 ? 'blue' : 'black');
 
-        if (itemType === 'sticky') {
-          shapesToCreate.push({
-            type: 'note',
-            x: startX,
-            y: currentY,
-            props: {
-              text: text,
-              color: 'yellow',
-              size: 'm',
-              font: 'draw',
-            },
-          });
-          currentY += 160;
-        } else if (itemType === 'box' || itemType === 'rectangle') {
-          const width = Math.min(Math.max(text.length * 10, 240), 500);
-          const height = Math.max(Math.ceil(text.length / 32) * 32, 55);
+        if (itemType === 'note' || itemType === 'sticky') {
+          // Yellow tip card — use geo rectangle with yellow solid fill (note shape is unreliable)
+          const tipText = rawText.startsWith('💡') ? rawText : '💡 ' + rawText;
+          const w = Math.min(Math.max(tipText.length * 8, 240), 480);
+          const h = Math.max(Math.ceil(tipText.length / 40) * 28, 52);
           shapesToCreate.push({
             type: 'geo',
             x: startX,
             y: currentY,
             props: {
               geo: 'rectangle',
-              w: width,
-              h: height,
-              richText: toRichText(text),
+              w,
+              h,
+              richText: toRichText(tipText),
+              color: 'yellow',
+              fill: 'solid',
+              font: 'draw',
+              size: 's',
+            },
+          });
+          currentY += h + 16;
+        } else if (itemType === 'box' || itemType === 'rectangle') {
+          const w = Math.min(Math.max(rawText.length * 10, 240), 500);
+          const h = Math.max(Math.ceil(rawText.length / 32) * 32, 55);
+          shapesToCreate.push({
+            type: 'geo',
+            x: startX,
+            y: currentY,
+            props: {
+              geo: 'rectangle',
+              w,
+              h,
+              richText: toRichText(rawText),
               color: color,
               fill: i === 0 ? 'semi' : 'none',
               font: 'mono',
               size: 's',
             },
           });
-          currentY += height + 16;
+          currentY += h + 16;
         } else {
-          // Default text line
-          const width = Math.min(Math.max(text.length * 9, 200), 500);
+          // Default: plain text line
+          const w = Math.min(Math.max(rawText.length * 9, 200), 500);
           shapesToCreate.push({
             type: 'text',
             x: startX,
             y: currentY,
             props: {
-              richText: toRichText(text),
+              richText: toRichText(rawText),
               color: 'blue',
               size: 's',
               font: 'mono',
-              w: width,
+              w,
               autoSize: true,
             },
           });
@@ -197,7 +205,7 @@ export default function CanvasPage() {
 
       (editor as any).createShapes(shapesToCreate);
     } catch (e) {
-      console.warn('Could not write PenEcho canvas content:', e);
+      console.warn('Could not write canvas shapes:', e);
     }
   }, [editor, toRichText]);
 
@@ -258,99 +266,16 @@ export default function CanvasPage() {
     return msg;
   }, []);
 
-  // Audio element reference for cloud TTS
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const fallbackSpeechSynth = (text: string, onFinish: () => void) => {
-    try {
-      const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-      if (!synth) { onFinish(); return; }
 
-      // Fix Chrome stuck synthesis state
-      if (synth.speaking || synth.pending) {
-        synth.cancel();
-      }
-      if (synth.paused) {
-        synth.resume();
-      }
-
-      // Clean text of markdown formatting (asterisks, hashtags, backticks, LaTeX)
-      const cleanText = text
-        .replace(/[*#_`~\\$%\[\]]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      if (!cleanText) { onFinish(); return; }
-
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-
-      // Select available voice
-      const voices = synth.getVoices();
-      if (voices && voices.length > 0) {
-        const preferredVoice =
-          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David') || v.name.includes('Samantha') || v.name.includes('Male') || v.name.includes('Female'))) ||
-          voices.find(v => v.lang.startsWith('en')) ||
-          voices[0];
-        if (preferredVoice) utterance.voice = preferredVoice;
-      }
-
-      let isFinished = false;
-      const done = () => {
-        if (isFinished) return;
-        isFinished = true;
-        onFinish();
-      };
-
-      utterance.onend = done;
-      utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e);
-        done();
-      };
-
-      // Periodic resume to bypass Chrome 15-second SpeechSynthesis silence bug
-      const resumeTimer = setInterval(() => {
-        if (!synth.speaking || isFinished) {
-          clearInterval(resumeTimer);
-        } else {
-          synth.resume();
-        }
-      }, 2500);
-
-      setTimeout(() => {
-        try {
-          synth.speak(utterance);
-        } catch (err) {
-          console.warn('synth.speak failed:', err);
-          clearInterval(resumeTimer);
-          done();
-        }
-      }, 50);
-    } catch (err) {
-      console.warn('fallbackSpeechSynth catch:', err);
-      onFinish();
-    }
-  };
-
-  const speakText = useCallback(async (text: string) => {
+  const speakText = useCallback((text: string) => {
     setCaptionsText(text);
     setCaptionsVisible(true);
     setCaptionsTyping(true);
 
-    // Failsafe timeout: guarantee processing lock is released after max 10 seconds
-    const safetyTimeout = setTimeout(() => {
-      setCaptionsTyping(false);
-      setTimeout(() => setCaptionsVisible(false), 1500);
-      isProcessingRef.current = false;
-      setIsConnecting(false);
-    }, 10000);
-
     const finishSpeaking = () => {
-      clearTimeout(safetyTimeout);
       setCaptionsTyping(false);
-      setTimeout(() => setCaptionsVisible(false), 1500);
+      setTimeout(() => setCaptionsVisible(false), 2000);
       isProcessingRef.current = false;
       setIsConnecting(false);
     };
@@ -360,42 +285,74 @@ export default function CanvasPage() {
       return;
     }
 
-    // Try cloud TTS first
-    try {
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
+    // Safety net — always release lock after 20s max
+    const safetyTimeout = setTimeout(finishSpeaking, 20000);
+
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    if (!synth) { clearTimeout(safetyTimeout); finishSpeaking(); return; }
+
+    // Clean markdown from text
+    const cleanText = text
+      .replace(/[*#_`~\\$%\[\]]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 600); // cap length so it doesn't time out
+
+    if (!cleanText) { clearTimeout(safetyTimeout); finishSpeaking(); return; }
+
+    // Cancel any ongoing speech first, then wait for Chrome to settle
+    synth.cancel();
+
+    const doSpeak = () => {
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.05;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      utterance.lang = 'en-US';
+
+      // Pick best English voice
+      const voices = synth.getVoices();
+      if (voices.length > 0) {
+        const pick =
+          voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural'))) ||
+          voices.find(v => v.lang === 'en-US') ||
+          voices.find(v => v.lang.startsWith('en')) ||
+          voices[0];
+        if (pick) utterance.voice = pick;
       }
 
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice: voiceType === 'human' ? 'alloy' : 'echo' })
-      });
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(safetyTimeout);
+        clearInterval(resumeTimer);
+        finishSpeaking();
+      };
 
-      const contentType = res.headers.get('Content-Type') || '';
-      if (res.ok && contentType.includes('audio')) {
-        // Got real audio from cloud TTS
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        currentAudioRef.current = audio;
-        audio.onended = finishSpeaking;
-        audio.onerror = () => fallbackSpeechSynth(text, finishSpeaking);
-        try {
-          await audio.play();
-          return;
-        } catch (playErr) {
-          // Autoplay blocked — fall through to speech synth
-          console.warn('Cloud audio play blocked:', playErr);
-        }
+      utterance.onend = finish;
+      utterance.onerror = (e) => {
+        console.warn('SpeechSynthesis error:', e.error);
+        finish();
+      };
+
+      // Chrome 15s freeze fix: periodically resume
+      const resumeTimer = setInterval(() => {
+        if (!synth.speaking || done) { clearInterval(resumeTimer); return; }
+        synth.resume();
+      }, 3000);
+
+      try {
+        synth.speak(utterance);
+      } catch (e) {
+        console.warn('synth.speak threw:', e);
+        clearInterval(resumeTimer);
+        finish();
       }
-      // Cloud TTS unavailable or returned JSON fallback — use browser speech synth
-    } catch {
-      // Fall back to Web Speech API
-    }
+    };
 
-    fallbackSpeechSynth(text, finishSpeaking);
+    // Wait 200ms after cancel for Chrome to fully clear its queue
+    setTimeout(doSpeak, 200);
   }, [voiceType]);
 
   // ==========================================================================
