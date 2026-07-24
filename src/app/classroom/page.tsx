@@ -126,6 +126,23 @@ export default function CanvasPage() {
     })),
   }), []);
 
+  // Color sanitizer to prevent Tldraw StoreSchema ValidationErrors
+  const normalizeColor = useCallback((c?: string): string => {
+    if (!c) return 'black';
+    const l = String(c).toLowerCase().trim();
+    const VALID_COLORS = new Set([
+      'black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue',
+      'yellow', 'orange', 'green', 'light-green', 'light-red', 'red', 'white'
+    ]);
+    if (VALID_COLORS.has(l)) return l;
+    if (l === 'gray') return 'grey';
+    if (l === 'purple') return 'violet';
+    if (l === 'cyan' || l === 'teal') return 'light-blue';
+    if (l === 'amber') return 'yellow';
+    if (l === 'pink') return 'light-red';
+    return 'blue';
+  }, []);
+
   // Write structured PenEcho-style visual shapes (boxes, tip cards, diagrams) to canvas
   const writeToCanvas = useCallback(async (content: any[]) => {
     if (!editor || !content || !Array.isArray(content) || content.length === 0) return;
@@ -171,7 +188,7 @@ export default function CanvasPage() {
         const itemObj = typeof item === 'string' ? { type: 'box', text: item } : item;
         const rawText = itemObj?.text || String(item);
         const itemType = (itemObj?.type || 'box').toLowerCase();
-        const color = itemObj?.color || (i === 0 ? 'blue' : 'black');
+        const color = normalizeColor(itemObj?.color || (i === 0 ? 'blue' : 'black'));
         const fill = itemObj?.fill || (i === 0 ? 'semi' : 'none');
         const font = itemObj?.font || (itemType === 'note' ? 'draw' : 'mono');
 

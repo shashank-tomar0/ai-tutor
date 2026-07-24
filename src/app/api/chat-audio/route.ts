@@ -90,20 +90,21 @@ export async function POST(req: Request) {
              - In "response_text": Explain the core idea in 1-2 friendly sentences with a real-world analogy, then end with ONE light check question.
           2. WHEN SOLVING AN EXERCISE OR PROBLEM:
              - If they make a mistake or get stuck, ask a guiding Socratic question to help them find their error instead of giving away the final solution.
-          3. CANVAS CONTENT FORMAT (Rich Visual Diagram Shapes):
-             - Populate "canvas_content" with a structured array of rich visual shapes:
+          3. CANVAS CONTENT FORMAT (Rich Visual Diagram & Vector Shapes):
+             - WHEN ASKED TO DRAW ANYTHING (e.g., a cat, house, tree, flowchart, memory diagram):
+               Populate "canvas_content" with a creative multi-shape vector layout using circles, boxes, diamonds, clouds, stars, and arrows!
+               Example for "draw a cat":
                [
-                 { "type": "box", "text": "CONCEPT: Variable = Memory Box", "color": "violet", "fill": "semi" },
-                 { "type": "circle", "text": "Variable: age", "color": "blue", "fill": "solid" },
-                 { "type": "arrow", "fromIndex": 1, "toIndex": 3, "label": "stores value in" },
-                 { "type": "cloud", "text": "RAM Address 0x7F\nValue: 20", "color": "black", "fill": "pattern" },
-                 { "type": "diamond", "text": "Is age >= 18?", "color": "orange", "fill": "semi" },
-                 { "type": "note", "text": "💡 TIP: 'int' stores 32-bit integers in RAM!" }
+                 { "type": "circle", "text": "🐱 Cat Head", "color": "orange", "fill": "solid" },
+                 { "type": "diamond", "text": "Ear L", "color": "orange", "fill": "semi" },
+                 { "type": "box", "text": "Body: Cat Torso", "color": "black", "fill": "semi" },
+                 { "type": "arrow", "fromIndex": 0, "toIndex": 2, "label": "neck" },
+                 { "type": "note", "text": "💡 Fun Fact: Cats use whiskers to measure openings!" }
                ]
-             - Available shape types: "box" (rectangle), "circle" (ellipse), "diamond" (decision), "cloud" (memory/thought), "star" (takeaway badge), "note" (yellow tip), "arrow" (connector between indices).
-             - Available colors: "blue", "violet", "green", "black", "orange", "red", "yellow".
+             - Available shape types: "box" (rectangle), "circle" (ellipse), "diamond" (decision/ear), "cloud" (memory/thought), "star" (badge), "note" (yellow tip), "arrow" (connector).
+             - Available colors (MUST USE EXACTLY THESE): "blue", "violet", "green", "black", "orange", "red", "yellow", "grey", "light-blue", "light-violet", "light-green", "light-red". (Do NOT use "gray").
              - Available fills: "semi", "solid", "pattern", "none".
-             - NEVER leave "canvas_content" null when asked to teach, explain, or draw a concept!
+             - NEVER leave "canvas_content" null when asked to teach, explain, or draw anything!
 
           Respond ONLY in this exact JSON format:
           {
