@@ -16,12 +16,17 @@ export async function POST(req: Request) {
     const textDirect = formData.get('text') as string | null;
     const shapesRaw = formData.get('shapes') as string;
     const skillRaw = formData.get('skill') as string;
+    const userIdRaw = formData.get('user_id') as string | null;
+    const studentNameRaw = formData.get('student_name') as string | null;
 
     let skillContext = "";
+    let parsedSkill: any = null;
     if (skillRaw) {
       try {
-        const skill = JSON.parse(skillRaw);
-        skillContext = `Current skill focus: ${skill.name}${skill.description ? ` — ${skill.description}` : ''}`;
+        parsedSkill = JSON.parse(skillRaw);
+        if (parsedSkill?.name) {
+          skillContext = `Current skill focus: ${parsedSkill.name}${parsedSkill.description ? ` — ${parsedSkill.description}` : ''}`;
+        }
       } catch(e) {}
     }
 
@@ -60,23 +65,19 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `You are Newton, an expert Socratic tutor.
-          The student's canvas state is: ${canvasContext}.
+          content: `You are Newton, an expert Socratic tutor for all STEM and coding subjects.
+          ${skillContext ? `${skillContext}\n` : ''}The student's canvas state is: ${canvasContext}.
 
-          The student can draw anything on the canvas — math problems, diagrams, shapes, text, freehand sketches.
-          Analyze EVERYTHING on the canvas carefully:
-          - Math equations: solve them step-by-step, identify the concept (algebra, geometry, calculus)
-          - Diagrams: understand what they're building
-          - Shapes + text together: identify what problem the student is working on
-          - If the student asks a question or says something, respond directly to it
-          - If the student hasn't said anything, observe the canvas and start a Socratic dialogue about what you see
-          - If they are struggling or confused, guide them with questions — never give direct answers
+          RULES:
+          1. Follow the student's lead, but stay anchored in the current skill focus if specified.
+          2. Read EVERYTHING on the canvas: text, shapes, diagrams, freehand sketches, equations. Reference what you see specifically.
+          3. EXPLAIN concepts clearly when asked direct questions, using analogies and step-by-step logic.
+          4. When the student makes a mistake or gets stuck, guide them with Socratic questions — lead them to the "Aha!" breakthrough instead of feeding them direct answers.
+          5. Be warm, conversational, patient, and encouraging.
 
           Determine if they are struggling (frustrated, asking for direct help, or completely wrong).
-          If they are struggling, set "is_struggling" to true, "concept" to the concept they're working on, and provide a Socratic "response_text" (a guiding question, not an answer).
-          If they are doing fine, set "is_struggling" to false and provide an encouraging "response_text".
-
-          Always respond in a warm, helpful tone. Use simple language. Reference what's on the canvas specifically.
+          If struggling → "is_struggling": true, "concept": topic/skill, "response_text": helpful explanation or guiding question.
+          If fine → "is_struggling": false, "concept": topic/skill, "response_text": normal helpful response.
 
           Respond ONLY in this JSON format:
           {
@@ -98,12 +99,13 @@ export async function POST(req: Request) {
 
     // 4. Log to Supabase if struggling
     if (result.is_struggling) {
-      const skillId = skillRaw ? JSON.parse(skillRaw).id : null;
+      const studentLabel = studentNameRaw || 'Student';
       const { error } = await supabase.from('interventions').insert([{
-        student_name: 'Student ' + Math.floor(Math.random() * 1000),
-        concept: result.concept || 'General',
+        user_id: userIdRaw || null,
+        student_name: studentLabel,
+        concept: result.concept || parsedSkill?.name || 'General Socratic',
         struggle: transcript,
-        skill_id: skillId
+        skill_id: parsedSkill?.id || null
       }]);
 
       if (error) console.error("Supabase insert error:", error);

@@ -11,7 +11,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: Request) {
   try {
-    const { transcript, shapes, skill } = await req.json();
+    const { transcript, shapes, skill, user_id, student_name } = await req.json();
 
     let skillContext = "";
     if (skill) {
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
         {
           role: "system",
           content: `You are Newton, an expert Socratic tutor.
-          The student's canvas state is: ${canvasContext}.
+          ${skillContext ? `${skillContext}\n` : ''}The student's canvas state is: ${canvasContext}.
 
           The student can draw anything on the canvas — math problems, diagrams, shapes, text, freehand sketches.
           Analyze EVERYTHING on the canvas carefully:
@@ -63,10 +63,13 @@ export async function POST(req: Request) {
 
     // 3. Log to Supabase if struggling
     if (result.is_struggling) {
+      const studentLabel = student_name || 'Student';
       const { error } = await supabase.from('interventions').insert([{
-        student_name: 'Student ' + Math.floor(Math.random() * 1000),
-        concept: result.concept || 'General',
-        struggle: transcript
+        user_id: user_id || null,
+        student_name: studentLabel,
+        concept: result.concept || skill?.name || 'General',
+        struggle: transcript,
+        skill_id: skill?.id || null
       }]);
 
       if (error) console.error("Supabase insert error:", error);

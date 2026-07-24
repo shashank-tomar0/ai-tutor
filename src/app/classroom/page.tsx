@@ -3,13 +3,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { ArrowLeft, MicOff } from 'lucide-react';
+import { ArrowLeft, MicOff, BookOpen, Target, Sparkles } from 'lucide-react';
 import * as rrweb from 'rrweb';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import ChatSidebar, { ChatMessage } from '@/components/ChatSidebar';
 import CaptionsBar from '@/components/CaptionsBar';
+import SkillTreeSidebar from '@/components/SkillTreeSidebar';
+import { SkillWithProgress } from '@/utils/skill-engine';
 
 export default function CanvasPage() {
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -17,6 +19,8 @@ export default function CanvasPage() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [voiceType, setVoiceType] = useState<'human' | 'system' | 'mute'>('human');
   const [user, setUser] = useState<any>(null);
+  const [isSkillTreeOpen, setIsSkillTreeOpen] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<SkillWithProgress | null>(null);
   const router = useRouter();
 
   // Chat messages
@@ -75,7 +79,7 @@ export default function CanvasPage() {
     type: 'doc',
     content: text.split('\n').filter(Boolean).map((line) => ({
       type: 'paragraph',
-      content: [{ type: 'text', text: line.slice(0, 80) }],
+      content: [{ type: 'text', text: line }],
     })),
   }), []);
 
@@ -94,7 +98,7 @@ export default function CanvasPage() {
           color: 'black' as const,
           size: 'm' as const,
           font: 'sans' as const,
-          w: Math.min(line.length * 8, 350),
+          w: Math.min(line.length * 10, 450),
           scale: 1,
           autoSize: true,
           textAlign: 'start' as const,
@@ -119,7 +123,9 @@ export default function CanvasPage() {
   // ==========================================================================
   // TTS (Text-to-Speech) — Browser SpeechSynthesis
   // ==========================================================================
-  const speakResponse = useCallback(async (text: string) => {
+
+  const speakText = useCallback((text: string) => {
+    // Shared function: speak via SpeechSynthesis, handle captions + cleanup
     setCaptionsText(text);
     setCaptionsVisible(true);
     setCaptionsTyping(true);
@@ -133,12 +139,15 @@ export default function CanvasPage() {
       return;
     }
 
+    // Chrome SpeechSynthesis can only run in a user-gesture context.
+    // The user clicking START or pressing Send provides that context.
     try {
       const synth = window.speechSynthesis;
       if (!synth) { isProcessingRef.current = false; setIsConnecting(false); return; }
-      synth.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
+
+      // Pick a good voice
       const voices = synth.getVoices();
       utterance.voice = voices.find(v => v.name.includes('David') || v.name.includes('Male'))
         || voices.find(v => v.name.includes('Google UK English Male'))
@@ -146,14 +155,23 @@ export default function CanvasPage() {
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
+
       utterance.onend = () => {
         setCaptionsTyping(false);
         setTimeout(() => setCaptionsVisible(false), 2000);
         isProcessingRef.current = false;
         setIsConnecting(false);
       };
-      utterance.onerror = () => { isProcessingRef.current = false; setIsConnecting(false); };
-      synth.speak(utterance);
+      utterance.onerror = () => {
+        isProcessingRef.current = false;
+        setIsConnecting(false);
+      };
+
+      // Cancel previous speech first
+      if (synth.speaking) synth.cancel();
+
+      // Use setTimeout(0) to let cancel settle before speaking (Chrome quirk)
+      setTimeout(() => { synth.speak(utterance); }, synth.speaking ? 50 : 0);
     } catch (err) {
       console.error('SpeechSynthesis failed:', err);
       isProcessingRef.current = false;
@@ -162,7 +180,7 @@ export default function CanvasPage() {
   }, [voiceType]);
 
   // ==========================================================================
-  // SEND MESSAGE TO AI (with full canvas context)
+  // SEND MESSAGE TO AI (with full canvas & skill context)
   // ==========================================================================
   const sendToAI = useCallback(async (text: string) => {
     isProcessingRef.current = true;
@@ -174,6 +192,9 @@ export default function CanvasPage() {
       formData.append('text', text);
       const shapes = editor ? editor.getCurrentPageShapes() : [];
       formData.append('shapes', JSON.stringify(shapes));
+      if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
+      if (user?.id) formData.append('user_id', user.id);
+      if (user?.email) formData.append('student_name', user.email.split('@')[0]);
 
       const res = await fetch("/api/chat-audio", { method: "POST", body: formData });
       const data = await res.json();
@@ -182,7 +203,7 @@ export default function CanvasPage() {
         const aiText = data.text || "I'm listening. Tell me more.";
         addMessage('ai', aiText);
         writeToCanvas(aiText);
-        speakResponse(aiText);
+        speakText(aiText);
       } else {
         isProcessingRef.current = false;
         setIsConnecting(false);
@@ -192,7 +213,7 @@ export default function CanvasPage() {
       isProcessingRef.current = false;
       setIsConnecting(false);
     }
-  }, [editor, addMessage, writeToCanvas, speakResponse]);
+  }, [editor, selectedSkill, user, addMessage, writeToCanvas, speakText]);
 
   const handleSendMessage = useCallback((text: string) => {
     sendToAI(text);
@@ -241,6 +262,9 @@ export default function CanvasPage() {
               formData.append('file', audioBlob, 'audio.webm');
               const shapes = editor ? editor.getCurrentPageShapes() : [];
               formData.append('shapes', JSON.stringify(shapes));
+              if (selectedSkill) formData.append('skill', JSON.stringify(selectedSkill));
+              if (user?.id) formData.append('user_id', user.id);
+              if (user?.email) formData.append('student_name', user.email.split('@')[0]);
 
               const res = await fetch("/api/chat-audio", { method: "POST", body: formData });
               const data = await res.json();
@@ -250,7 +274,7 @@ export default function CanvasPage() {
                 const aiText = data.text || "I'm listening.";
                 addMessage('ai', aiText);
                 writeToCanvas(aiText);
-                speakResponse(aiText);
+                speakText(aiText);
               } else {
                 isProcessingRef.current = false;
                 setIsConnecting(false);
@@ -290,7 +314,7 @@ export default function CanvasPage() {
       if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
       if (audioContextRef.current) audioContextRef.current.close();
     };
-  }, [editor, isSessionActive, user?.id, addMessage, writeToCanvas, speakResponse]);
+  }, [editor, isSessionActive, user, selectedSkill, addMessage, writeToCanvas, speakText]);
 
   // ==========================================================================
   // SESSION TOGGLE
@@ -304,9 +328,10 @@ export default function CanvasPage() {
     } else {
       setIsSessionActive(true);
       rrwebEventsRef.current = [];
-      const greeting = "Hello! I'm Newton. I can see everything on your canvas. What are we working on today?";
+      const topicMention = selectedSkill ? ` focus on ${selectedSkill.name}` : '';
+      const greeting = `Hello! I'm Newton. I can see everything on your canvas${topicMention}. What problem are we tackling today?`;
       addMessage('ai', greeting);
-      speakResponse(greeting);
+      speakText(greeting);
     }
   };
 
@@ -317,11 +342,15 @@ export default function CanvasPage() {
     if (rrwebEventsRef.current.length === 0) return;
     const studentName = user?.email?.split('@')[0] || 'Anonymous Student';
     const canvasSnapshot = editor ? editor.getCurrentPageShapes() : [];
+    const conceptName = selectedSkill ? selectedSkill.name : 'General Socratic';
+
     try {
       const { error } = await supabase.from('session_replays').insert([{
-        user_id: user?.id, student_name: studentName,
-        concept: 'General Socratic',
-        events: rrwebEventsRef.current, canvas_snapshot: canvasSnapshot,
+        user_id: user?.id,
+        student_name: studentName,
+        concept: conceptName,
+        events: rrwebEventsRef.current,
+        canvas_snapshot: canvasSnapshot,
       }]);
       if (error) throw error;
     } catch {
@@ -350,6 +379,19 @@ export default function CanvasPage() {
               <ArrowLeft size={14} />
               <span>INDEX</span>
             </Link>
+
+            {/* SKILL TREE BUTTON */}
+            <button
+              onClick={() => setIsSkillTreeOpen(true)}
+              className={`flex items-center gap-2 border border-black px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] ${
+                selectedSkill
+                  ? 'bg-black text-white'
+                  : 'bg-white text-black hover:bg-black hover:text-white'
+              }`}
+            >
+              <BookOpen size={14} />
+              <span>{selectedSkill ? selectedSkill.name : 'SKILLS & PATH'}</span>
+            </button>
           </div>
 
           {/* Session status badge */}
@@ -363,6 +405,48 @@ export default function CanvasPage() {
             </div>
           </div>
         </div>
+
+        {/* Tldraw Canvas */}
+        <div className="flex-1 relative">
+          <Tldraw onMount={handleMount} persistenceKey="newton-canvas-v2" />
+
+          {/* Captions Overlay */}
+          <CaptionsBar
+            text={captionsText}
+            isVisible={captionsVisible}
+            isTyping={captionsTyping}
+            voiceType={voiceType}
+          />
+        </div>
+      </div>
+
+      {/* ============ RIGHT: Chat Sidebar ============ */}
+      <div className="max-h-screen">
+        <ChatSidebar
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isProcessing={isConnecting}
+          isSessionActive={isSessionActive}
+          onToggleSession={toggleSession}
+          voiceType={voiceType}
+          onVoiceTypeChange={setVoiceType}
+        />
+      </div>
+
+      {/* ============ SKILL TREE SIDEBAR MODAL ============ */}
+      <SkillTreeSidebar
+        userId={user?.id || null}
+        isOpen={isSkillTreeOpen}
+        onClose={() => setIsSkillTreeOpen(false)}
+        selectedSkill={selectedSkill}
+        onSelectSkill={(skill) => {
+          setSelectedSkill(skill);
+          setIsSkillTreeOpen(false);
+        }}
+      />
+    </div>
+  );
+}
 
         {/* Tldraw Canvas */}
         <div className="flex-1 relative">
