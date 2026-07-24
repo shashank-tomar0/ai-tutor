@@ -548,11 +548,11 @@ export default function CanvasPage() {
         <div className="pointer-events-auto bg-white border-2 border-black p-1.5 px-3 rounded-full flex items-center space-x-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-xs font-bold">
           <span className="uppercase tracking-tight text-[10px] text-black/50 pr-1 border-r border-black/20">VOICE:</span>
           
-          <button 
+          <button
             onClick={() => setVoiceType('human')}
             className={`px-3 py-1 rounded-full uppercase tracking-tighter transition-all ${voiceType === 'human' ? 'bg-black text-white' : 'bg-transparent text-black hover:bg-black/5'}`}
           >
-            ElevenLabs
+            OpenRouter
           </button>
           
           <button 
