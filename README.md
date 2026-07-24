@@ -82,10 +82,9 @@ Newton addresses all four problems with a single architecture centered on the sp
 The system is organized into four layers, each communicating through well-defined interfaces.
 
 <p align="center">
-  <img src="docs/architecture.svg" alt="Newton System Architecture Diagram" width="100%">
+  <img src="docs/newton-user-flow.svg" alt="Newton Student Interaction Flow Diagram" width="100%">
 </p>
 
-The full Excalidraw diagram is available at `docs/architecture.excalidraw` and can be edited at [excalidraw.com](https://excalidraw.com) by importing the file.
 
 ### Client Layer
 
@@ -105,7 +104,7 @@ The frontend runs Next.js 16 with React 19 and Tailwind CSS. The primary interfa
 
 **CaptionsBar.** An animated word-by-word caption overlay synchronized with audio playback, positioned at the bottom of the canvas area. The component handles three voice modes with distinct visual indicators.
 
-**Additional components.** The SkillTreeSidebar provides a collapsible modal for browsing and selecting skills. The SessionSummaryModal (built but not yet wired) displays mastery delta, duration, and struggle metrics. The HandwritingModal enables canvas image capture for OCR-based AI analysis.
+**Additional components.** The SkillTreeSidebar provides a collapsible modal for browsing and selecting skills, with prerequisite enforcement that greys out locked skills until requirements are met. The SessionSummaryModal displays mastery delta, duration, and struggle metrics when a session ends. The HandwritingModal provides a dedicated scratchpad for drawing equations and sending them for OCR-based AI solving via a two-phase pipeline (vision OCR then Socratic LLM).
 
 ### API Layer
 
@@ -121,6 +120,7 @@ All server-side logic is implemented as Next.js App Router route handlers within
 | `/api/skills/update` | POST | Updates user skill mastery with compounding formula |
 | `/api/dashboard/heatmap` | GET | Returns concept mastery data aggregated from user_skills and interventions |
 | `/api/dashboard/struggling` | GET | Returns recent intervention records for the live teacher feed |
+| `/api/progress` | GET | Returns student streak, weekly goal progress, and last session data |
 
 ### LLM and AI Layer
 
@@ -299,14 +299,16 @@ src/
       skills/route.ts            Skill tree with user progress
       skills/recommendations/    Next skill recommendation engine
       skills/update/             Mastery progress updates
+      progress/route.ts          Student streak and weekly goal data
       dashboard/heatmap/         Concept mastery aggregation
       dashboard/struggling/      Live intervention feed
 
   components/
     ChatSidebar.tsx              Message history, input, session controls, voice selector
     CaptionsBar.tsx              Animated speech captions overlay
-    SkillTreeSidebar.tsx         Collapsible skill tree with recommendations
+    SkillTreeSidebar.tsx         Collapsible skill tree with recommendations and prerequisite enforcement
     SessionSummaryModal.tsx      End-of-session summary modal
+    HandwritingModal.tsx         Scratchpad for OCR-based handwritten equation solving
 
   utils/
     supabase.ts                  Supabase client singleton
@@ -314,8 +316,8 @@ src/
     canvas-parser.ts             Shape normalization, diagram classification engine
 
 docs/
-  architecture.excalidraw        Editable architecture diagram (Excalidraw format)
-  architecture.svg               Rendered architecture diagram
+  newton-user-flow.excalidraw    Editable user-flow diagram (Excalidraw format)
+  newton-user-flow.svg           Rendered user-flow diagram
 
 PRD.md                           Full product requirements document
 supabase_schema.sql              Database schema and seed data
@@ -444,6 +446,26 @@ Accept JSON body:
 
 **Response:** MP3 audio stream (Content-Type: audio/mpeg) on success. Falls back to `{ "fallback": true }` JSON when the API is unavailable.
 
+### GET /api/progress
+
+**Query Parameters:**
+- `userId` (string, required): The user ID to fetch progress data for.
+
+**Response:**
+```json
+{
+  "streak": 3,
+  "bestStreak": 7,
+  "weeklyGoal": 5,
+  "weeklyCompleted": 2,
+  "lastSession": {
+    "date": "2026-07-24T10:30:00Z",
+    "skillName": "Linear Equations",
+    "masteryGain": 17
+  }
+}
+```
+
 ---
 
 ## Database Schema
@@ -502,7 +524,7 @@ The system prompt given to Groq Llama-3.3-70B is designed for structured JSON ou
 - Tldraw v5 infinite whiteboard with complete drawing toolset
 - Voice activity detection using Web Audio AnalyserNode
 - Groq Whisper speech-to-text (whisper-large-v3)
-- Dual TTS: OpenRouter (Human Voice) and browser SpeechSynthesis (System Voice)
+- Dual TTS: OpenRouter (Human Voice) and browser SpeechSynthesis (System Voice) with headphone fix
 - Chat sidebar with message history, typing indicator, and session controls
 - AI writes structured visual shapes onto the canvas in real-time
 - Teacher dashboard with concept heatmap, live intervention feed, and replay library
@@ -510,18 +532,24 @@ The system prompt given to Groq Llama-3.3-70B is designed for structured JSON ou
 - Supabase authentication with Google OAuth and RBAC (student/teacher)
 - Adaptive skill tree with 30 seeded skills across 7 subjects
 - Per-user mastery tracking with compounding success formula
-- Prerequisite-based skill recommendation algorithm
+- Prerequisite-based skill recommendation algorithm with client-side enforcement
 - Canvas parser for shape, geometry, equation, and diagram detection
-- System architecture diagram (Excalidraw + SVG)
+- Session summary modal on end (mastery delta, duration, struggle count)
+- Teacher feedback form on replay viewer
+- Handwriting OCR scratchpad with two-phase vision pipeline (OpenRouter + Groq)
+- Student progress dashboard with real streak tracking and weekly goals
+- Progress API endpoint (GET /api/progress)
+- Loading skeleton placeholders on dashboard and skill tree
+- User-flow interaction diagram (Excalidraw + SVG)
 - Comprehensive product requirements document (PRD.md)
 
 ### Tier 1 (In Development)
 
 - Real database integration for dashboard analytics endpoints
-- Student progress dashboard with daily streak tracking, mastery timeline charts, and badge system
-- Session summary modal showing mastery delta, concept coverage, and struggle metrics
 - Multi-subject skill trees for physics, chemistry, biology, and programming
 - Session memory for conversation context (last 5 Q&A pairs)
+- Achievement badges and gamification system
+- Multiplayer classrooms with collaborative Tldraw sync
 
 ### Tier 2 (Next Quarter)
 
